@@ -15,6 +15,25 @@ between your PHP file and the proxy class.
 
 Currently this project is under development and not ready for a daily usage.
 
+Build your own
+--------------
+
+    # Get the dependecies
+    go get
+    # Build
+    go Build
+
+Run the proxy
+-------------
+
+    # Don't forget to change the configuration of your IDE to use port 9010
+    ./flow-debugproxy --xdebug 127.0.0.1:9000 --ide 127.0.0.1:9010 --vv
+
+Show help
+---------
+
+    ./flow-debugproxy help
+
 Acknowledgments
 ---------------
 
