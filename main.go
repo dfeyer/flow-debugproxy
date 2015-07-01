@@ -232,7 +232,11 @@ func registerPathMapping(path string, originalPath string) string {
 			log("%s", c("Our Umpa Lumpa take care of your mapping and they did a great job, they found a proxy for you:", "green"))
 			log(">>> %s\n", c(path, "green"))
 		}
-		mapping[path] = originalPath
+
+		if _, exist := mapping[path]; exist == false {
+			fmt.Printf("Register new mapping:\n%s\n", path)
+			mapping[path] = originalPath
+		}
 		return path
 	}
 	return originalPath
