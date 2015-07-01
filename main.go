@@ -170,7 +170,7 @@ func (p *proxy) pipe(src, dst *net.TCPConn) {
 			if isFromDebugger {
 				p.log("Raw protocol:\n%s\n", logger.Colorize(fmt.Sprintf(h, b), "blue"))
 			} else {
-				p.log("Raw protocol:\n%s\n", logger.Colorize(fmt.Sprintf(h, debugTextProtocol(b)), "blue"))
+				p.log("Raw protocol:\n%s\n", logger.Colorize(fmt.Sprintf(h, logger.FormatTextProtocol(b)), "blue"))
 			}
 		}
 		//extract command name
@@ -184,7 +184,7 @@ func (p *proxy) pipe(src, dst *net.TCPConn) {
 			if isFromDebugger {
 				p.log("Processed protocol:\n%s\n", logger.Colorize(fmt.Sprintf(h, b), "blue"))
 			} else {
-				p.log("Processed protocol:\n%s\n", logger.Colorize(fmt.Sprintf(h, debugTextProtocol(b)), "blue"))
+				p.log("Processed protocol:\n%s\n", logger.Colorize(fmt.Sprintf(h, logger.FormatTextProtocol(b)), "blue"))
 			}
 		} else {
 			p.log(h, "")
@@ -201,10 +201,6 @@ func (p *proxy) pipe(src, dst *net.TCPConn) {
 			p.receivedBytes += uint64(n)
 		}
 	}
-}
-
-func debugTextProtocol(protocol []byte) []byte {
-	return bytes.Trim(bytes.Replace(protocol, []byte("\x00"), []byte("\n"), -1), "\n")
 }
 
 func buildClassNameFromPath(path string) []string {
