@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/dfeyer/flow-debugproxy/errorhandler"
 	"github.com/dfeyer/flow-debugproxy/logger"
 
 	"github.com/codegangsta/cli"
@@ -61,11 +62,11 @@ func main() {
 		localAddr := cli.String("xdebug")
 		remoteAddr := cli.String("ide")
 		laddr, err := net.ResolveTCPAddr("tcp", localAddr)
-		check(err)
+		errorhandler.Handling(err)
 		raddr, err := net.ResolveTCPAddr("tcp", remoteAddr)
-		check(err)
+		errorhandler.Handling(err)
 		listener, err := net.ListenTCP("tcp", laddr)
-		check(err)
+		errorhandler.Handling(err)
 
 		logger.Info("Debugger from %v\nIDE      from %v\n", localAddr, remoteAddr)
 
@@ -270,11 +271,7 @@ func applyMappingToXML(xml []byte) []byte {
 	}
 	s := strings.Split(string(xml), "\x00")
 	i, err := strconv.Atoi(s[0])
-	if err != nil {
-		//handle error
-		fmt.Println(err)
-		os.Exit(2)
-	}
+	errorhandler.Handling(err)
 	l := len(s[1])
 	if i != l {
 		xml = bytes.Replace(xml, []byte(strconv.Itoa(i)), []byte(strconv.Itoa(l)), 1)
@@ -285,7 +282,7 @@ func applyMappingToXML(xml []byte) []byte {
 
 func readOriginalPathFromCache(path string) string {
 	dat, err := ioutil.ReadFile(path)
-	check(err)
+	errorhandler.Handling(err)
 	r := regexp.MustCompile(`(?m)^# PathAndFilename: (.*)$`)
 	match := r.FindStringSubmatch(string(dat))
 	//todo check if the match contain something
@@ -299,7 +296,7 @@ func readOriginalPathFromCache(path string) string {
 
 func registerPathMapping(path string, originalPath string) string {
 	dat, err := ioutil.ReadFile(path)
-	check(err)
+	errorhandler.Handling(err)
 	//check if file contains flow annotation
 	if strings.Contains(string(dat), "@Flow\\") {
 		if verbose {
@@ -317,13 +314,4 @@ func registerPathMapping(path string, originalPath string) string {
 
 func getRealFilename(path string) string {
 	return strings.TrimPrefix(path, "file://")
-}
-
-//helper functions
-
-func check(err error) {
-	if err != nil {
-		logger.Warn(err.Error())
-		os.Exit(1)
-	}
 }
