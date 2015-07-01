@@ -167,7 +167,7 @@ func (p *proxy) pipe(src, dst *net.TCPConn) {
 		p.log(h, f)
 		//extract command name
 		if isFromDebugger {
-			//todo, found a proper way to parse XML
+			b = applyMappingToXML(b)
 		} else {
 			commandParts := strings.Fields(fmt.Sprintf(h, b))
 			command = commandParts[0]
@@ -221,6 +221,29 @@ func mapPath(originalPath string) string {
 	}
 
 	return originalPath
+}
+
+func applyMappingToXML(xml []byte) []byte {
+	r := regexp.MustCompile(`filename=["]?file://(\S+)/Data/Temporary/Development/Cache/Code/Flow_Object_Classes/([^"]*)\.php`)
+	var processedMapping = map[string]bool{}
+
+	for _, match := range r.FindAllStringSubmatch(string(xml), -1) {
+		path := match[1] + "/Data/Temporary/Development/Cache/Code/Flow_Object_Classes/" + match[2] + ".php"
+		if _, ok := processedMapping[path]; ok == false {
+			processedMapping[path] = true
+			if originalPath, exist := mapping[path]; exist {
+				if veryverbose {
+					fmt.Printf("Umpa Lumpa can help you, he know the mapping\n>>> %s\n", originalPath)
+				}
+			} else {
+				if veryverbose {
+					fmt.Printf("Umpa Lumpa need to work harder, need to reverse this one\n>>> %s\n", path)
+				}
+			}
+		}
+	}
+
+	return xml
 }
 
 func registerPathMapping(path string, originalPath string) string {
