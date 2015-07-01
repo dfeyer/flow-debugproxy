@@ -1,6 +1,8 @@
 package main
 
 import (
+	"github.com/dfeyer/flow-debugproxy/logger"
+
 	"github.com/codegangsta/cli"
 	"os"
 
@@ -11,8 +13,6 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-
-	"github.com/mgutz/ansi"
 
 	"net"
 )
@@ -67,8 +67,7 @@ func main() {
 		listener, err := net.ListenTCP("tcp", laddr)
 		check(err)
 
-		fmt.Printf(c("Debugger from %v\n", "green"), localAddr)
-		fmt.Printf(c("IDE from %v\n", "green"), remoteAddr)
+		logger.Info("Debugger from %v\nIDE      from %v\n", localAddr, remoteAddr)
 
 		verbose = cli.Bool("verbose")
 		veryverbose = cli.Bool("vv")
@@ -80,7 +79,7 @@ func main() {
 		for {
 			conn, err := listener.AcceptTCP()
 			if err != nil {
-				fmt.Printf("Failed to accept connection '%s'\n", err)
+				logger.Warn("Failed to accept connection '%s'\n", err)
 				continue
 			}
 			connid++
@@ -111,7 +110,7 @@ type proxy struct {
 
 func (p *proxy) log(s string, args ...interface{}) {
 	if verbose {
-		log(s, args...)
+		logger.Info(s, args...)
 	}
 }
 
@@ -120,7 +119,7 @@ func (p *proxy) err(s string, err error) {
 		return
 	}
 	if err != io.EOF {
-		warn(s, err)
+		logger.Warn(s, err)
 	}
 	p.errsig <- true
 	p.erred = true
@@ -168,9 +167,9 @@ func (p *proxy) pipe(src, dst *net.TCPConn) {
 		p.log(h, f)
 		if veryverbose {
 			if isFromDebugger {
-				p.log("Raw protocol:\n%s\n", c(fmt.Sprintf(h, b), "blue"))
+				p.log("Raw protocol:\n%s\n", logger.Colorize(fmt.Sprintf(h, b), "blue"))
 			} else {
-				p.log("Raw protocol:\n%s\n", c(fmt.Sprintf(h, debugTextProtocol(b)), "blue"))
+				p.log("Raw protocol:\n%s\n", logger.Colorize(fmt.Sprintf(h, debugTextProtocol(b)), "blue"))
 			}
 		}
 		//extract command name
@@ -182,9 +181,9 @@ func (p *proxy) pipe(src, dst *net.TCPConn) {
 		//show output
 		if veryverbose {
 			if isFromDebugger {
-				p.log("Processed protocol:\n%s\n", c(fmt.Sprintf(h, b), "blue"))
+				p.log("Processed protocol:\n%s\n", logger.Colorize(fmt.Sprintf(h, b), "blue"))
 			} else {
-				p.log("Processed protocol:\n%s\n", c(fmt.Sprintf(h, debugTextProtocol(b)), "blue"))
+				p.log("Processed protocol:\n%s\n", logger.Colorize(fmt.Sprintf(h, debugTextProtocol(b)), "blue"))
 			}
 		} else {
 			p.log(h, "")
@@ -236,7 +235,7 @@ func applyMappingToTextProtocol(protocol []byte) []byte {
 	if command == "breakpoint_set" {
 		file := commandParts[6]
 		if verbose {
-			log("Command: %s", c(command, "blue"))
+			logger.Info("Command: %s", logger.Colorize(command, "blue"))
 		}
 		fileMapping := mapPath(file)
 		protocol = bytes.Replace(protocol, []byte(file), []byte("file://"+fileMapping), 1)
@@ -254,7 +253,7 @@ func applyMappingToXML(xml []byte) []byte {
 		if _, ok := processedMapping[path]; ok == false {
 			if originalPath, exist := mapping[path]; exist {
 				if veryverbose {
-					log("Umpa Lumpa can help you, he know the mapping\n%s\n%s\n", c(">>> "+fmt.Sprintf(h, path), "yellow"), c(">>> "+fmt.Sprintf(h, getRealFilename(originalPath)), "green"))
+					logger.Info("Umpa Lumpa can help you, he know the mapping\n%s\n%s\n", logger.Colorize(">>> "+fmt.Sprintf(h, path), "yellow"), logger.Colorize(">>> "+fmt.Sprintf(h, getRealFilename(originalPath)), "green"))
 				}
 				processedMapping[path] = originalPath
 			} else {
@@ -292,7 +291,7 @@ func readOriginalPathFromCache(path string) string {
 	//todo check if the match contain something
 	originalPath := match[1]
 	if veryverbose {
-		log("Umpa Lumpa need to work harder, need to reverse this one\n>>> %s\n>>> %s\n", c(fmt.Sprintf(h, path), "yellow"), c(fmt.Sprintf(h, originalPath), "green"))
+		logger.Info("Umpa Lumpa need to work harder, need to reverse this one\n>>> %s\n>>> %s\n", logger.Colorize(fmt.Sprintf(h, path), "yellow"), logger.Colorize(fmt.Sprintf(h, originalPath), "green"))
 	}
 	registerPathMapping(path, originalPath)
 	return originalPath
@@ -304,8 +303,8 @@ func registerPathMapping(path string, originalPath string) string {
 	//check if file contains flow annotation
 	if strings.Contains(string(dat), "@Flow\\") {
 		if verbose {
-			log("%s", c("Our Umpa Lumpa take care of your mapping and they did a great job, they found a proxy for you:", "green"))
-			log(">>> %s\n", c(path, "green"))
+			logger.Info("%s", "Our Umpa Lumpa take care of your mapping and they did a great job, they found a proxy for you:")
+			logger.Info(">>> %s\n", path, "green")
 		}
 
 		if _, exist := mapping[path]; exist == false {
@@ -324,19 +323,7 @@ func getRealFilename(path string) string {
 
 func check(err error) {
 	if err != nil {
-		warn(err.Error())
+		logger.Warn(err.Error())
 		os.Exit(1)
 	}
-}
-
-func c(str, style string) string {
-	return ansi.Color(str, style)
-}
-
-func log(f string, args ...interface{}) {
-	fmt.Printf(c(f, "green")+"\n", args...)
-}
-
-func warn(f string, args ...interface{}) {
-	fmt.Printf(c(f, "red")+"\n", args...)
 }
