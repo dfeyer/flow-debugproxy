@@ -9,6 +9,7 @@ import (
 	"io"
 	"io/ioutil"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/mgutz/ansi"
@@ -20,6 +21,7 @@ var connid = uint64(0)
 var mapping = map[string]string{}
 var verbose = false
 var veryverbose = false
+var h = "%s"
 
 func main() {
 	app := cli.NewApp()
@@ -146,12 +148,12 @@ func (p *proxy) start() {
 
 func (p *proxy) pipe(src, dst *net.TCPConn) {
 	//data direction
-	var f, h, command string
+	var f, h string
 	isFromDebugger := src == p.lconn
 	if isFromDebugger {
-		f = "\nDebugger >>> IDE"
+		f = "\nDebugger >>> IDE\n================"
 	} else {
-		f = "\nIDE >>> Debugger"
+		f = "\nIDE >>> Debugger\n================"
 	}
 	h = "%s"
 	//directional copy (64k buffer)
@@ -163,26 +165,27 @@ func (p *proxy) pipe(src, dst *net.TCPConn) {
 			return
 		}
 		b := buff[:n]
-		command = "Not really important for us ..."
 		p.log(h, f)
+		if veryverbose {
+			if isFromDebugger {
+				p.log("Raw protocol:\n%s\n", c(fmt.Sprintf(h, b), "blue"))
+			} else {
+				p.log("Raw protocol:\n%s\n", c(fmt.Sprintf(h, debugTextProtocol(b)), "blue"))
+			}
+		}
 		//extract command name
 		if isFromDebugger {
 			b = applyMappingToXML(b)
 		} else {
-			commandParts := strings.Fields(fmt.Sprintf(h, b))
-			command = commandParts[0]
-			if command == "breakpoint_set" {
-				file := commandParts[6]
-				if verbose {
-					p.log("Command: %s", c(command, "blue"))
-				}
-				fileMapping := mapPath(file)
-				b = bytes.Replace(b, []byte(file), []byte(fileMapping), 1)
-			}
+			b = applyMappingToTextProtocol(b)
 		}
 		//show output
 		if veryverbose {
-			p.log(h, "\n"+c(fmt.Sprintf(h, b), "blue"))
+			if isFromDebugger {
+				p.log("Processed protocol:\n%s\n", c(fmt.Sprintf(h, b), "blue"))
+			} else {
+				p.log("Processed protocol:\n%s\n", c(fmt.Sprintf(h, debugTextProtocol(b)), "blue"))
+			}
 		} else {
 			p.log(h, "")
 		}
@@ -198,6 +201,10 @@ func (p *proxy) pipe(src, dst *net.TCPConn) {
 			p.receivedBytes += uint64(n)
 		}
 	}
+}
+
+func debugTextProtocol(protocol []byte) []byte {
+	return bytes.Trim(bytes.Replace(protocol, []byte("\x00"), []byte("\n"), -1), "\n")
 }
 
 func buildClassNameFromPath(path string) []string {
@@ -223,27 +230,72 @@ func mapPath(originalPath string) string {
 	return originalPath
 }
 
+func applyMappingToTextProtocol(protocol []byte) []byte {
+	commandParts := strings.Fields(fmt.Sprintf(h, protocol))
+	command := commandParts[0]
+	if command == "breakpoint_set" {
+		file := commandParts[6]
+		if verbose {
+			log("Command: %s", c(command, "blue"))
+		}
+		fileMapping := mapPath(file)
+		protocol = bytes.Replace(protocol, []byte(file), []byte("file://"+fileMapping), 1)
+	}
+
+	return protocol
+}
+
 func applyMappingToXML(xml []byte) []byte {
 	r := regexp.MustCompile(`filename=["]?file://(\S+)/Data/Temporary/Development/Cache/Code/Flow_Object_Classes/([^"]*)\.php`)
-	var processedMapping = map[string]bool{}
+	var processedMapping = map[string]string{}
 
 	for _, match := range r.FindAllStringSubmatch(string(xml), -1) {
 		path := match[1] + "/Data/Temporary/Development/Cache/Code/Flow_Object_Classes/" + match[2] + ".php"
 		if _, ok := processedMapping[path]; ok == false {
-			processedMapping[path] = true
 			if originalPath, exist := mapping[path]; exist {
 				if veryverbose {
-					fmt.Printf("Umpa Lumpa can help you, he know the mapping\n>>> %s\n", originalPath)
+					log("Umpa Lumpa can help you, he know the mapping\n%s\n%s\n", c(">>> "+fmt.Sprintf(h, path), "yellow"), c(">>> "+fmt.Sprintf(h, getRealFilename(originalPath)), "green"))
 				}
+				processedMapping[path] = originalPath
 			} else {
-				if veryverbose {
-					fmt.Printf("Umpa Lumpa need to work harder, need to reverse this one\n>>> %s\n", path)
-				}
+				originalPath = readOriginalPathFromCache(path)
+				processedMapping[path] = originalPath
 			}
 		}
 	}
 
+	for path, originalPath := range processedMapping {
+		path = getRealFilename(path)
+		originalPath = getRealFilename(originalPath)
+		xml = bytes.Replace(xml, []byte(path), []byte(originalPath), -1)
+	}
+	s := strings.Split(string(xml), "\x00")
+	i, err := strconv.Atoi(s[0])
+	if err != nil {
+		//handle error
+		fmt.Println(err)
+		os.Exit(2)
+	}
+	l := len(s[1])
+	if i != l {
+		xml = bytes.Replace(xml, []byte(strconv.Itoa(i)), []byte(strconv.Itoa(l)), 1)
+	}
+
 	return xml
+}
+
+func readOriginalPathFromCache(path string) string {
+	dat, err := ioutil.ReadFile(path)
+	check(err)
+	r := regexp.MustCompile(`(?m)^# PathAndFilename: (.*)$`)
+	match := r.FindStringSubmatch(string(dat))
+	//todo check if the match contain something
+	originalPath := match[1]
+	if veryverbose {
+		log("Umpa Lumpa need to work harder, need to reverse this one\n>>> %s\n>>> %s\n", c(fmt.Sprintf(h, path), "yellow"), c(fmt.Sprintf(h, originalPath), "green"))
+	}
+	registerPathMapping(path, originalPath)
+	return originalPath
 }
 
 func registerPathMapping(path string, originalPath string) string {
@@ -257,7 +309,6 @@ func registerPathMapping(path string, originalPath string) string {
 		}
 
 		if _, exist := mapping[path]; exist == false {
-			fmt.Printf("Register new mapping:\n%s\n", path)
 			mapping[path] = originalPath
 		}
 		return path
