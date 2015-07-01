@@ -46,6 +46,11 @@ Acknowledgments
 
 Development sponsored by [ttree ltd - neos solution provider](http://ttree.ch).
 
+This project is highly inspired by the PHP based Debug proxy:
+https://github.com/sandstorm/debugproxy thanks to the Sandstorm team. The goal
+of the Go version of the proxy is to solve the performance issue that the PHP
+version has.
+
 We try our best to craft this package with a lots of love, we are open to
 sponsoring, support request, ... just contact us.
 
