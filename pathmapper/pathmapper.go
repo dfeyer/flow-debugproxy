@@ -24,26 +24,50 @@ type PathMapper struct {
 
 //ApplyMappingToTextProtocol change file path in xDebug text protocol
 func (p *PathMapper) ApplyMappingToTextProtocol(protocol []byte) []byte {
-	commandParts := strings.Fields(fmt.Sprintf(h, protocol))
-	command := commandParts[0]
-	if command == "breakpoint_set" {
-		file := commandParts[6]
-		if p.Config.Verbose {
-			logger.Info("Command: %s", logger.Colorize(command, "blue"))
-		}
-		fileMapping := p.mapPath(file)
-		protocol = bytes.Replace(protocol, []byte(file), []byte("file://"+fileMapping), 1)
-	}
-
-	return protocol
+	return p.doTextPathMapping(protocol)
 }
 
 //ApplyMappingToXML change file path in xDebug XML protocol
 func (p *PathMapper) ApplyMappingToXML(xml []byte) []byte {
-	r := regexp.MustCompile(`filename=["]?file://(\S+)/Data/Temporary/[^/]*/Cache/Code/Flow_Object_Classes/([^"]*)\.php`)
-	var processedMapping = map[string]string{}
+	xml = p.doXmlPathMapping(xml)
 
-	for _, match := range r.FindAllStringSubmatch(string(xml), -1) {
+	//update xml length count
+	s := strings.Split(string(xml), "\x00")
+	i, err := strconv.Atoi(s[0])
+	errorhandler.PanicHandling(err)
+	l := len(s[1])
+	if i != l {
+		xml = bytes.Replace(xml, []byte(strconv.Itoa(i)), []byte(strconv.Itoa(l)), 1)
+	}
+
+	return xml
+}
+
+func (p *PathMapper) doTextPathMapping(b []byte) []byte {
+	var processedMapping = map[string]string{}
+	r := regexp.MustCompile(`file://([^ ]*\.php)`)
+	for _, match := range r.FindAllStringSubmatch(string(b), -1) {
+		originalPath := match[1]
+		path := p.mapPath(originalPath)
+		if _, ok := processedMapping[path]; ok == false {
+			originalPath = p.readOriginalPathFromCache(path)
+			processedMapping[path] = originalPath
+		}
+	}
+
+	for path, originalPath := range processedMapping {
+		path = p.getRealFilename(path)
+		originalPath = p.getRealFilename(originalPath)
+		b = bytes.Replace(b, []byte(originalPath), []byte(path), -1)
+	}
+
+	return b
+}
+
+func (p *PathMapper) doXmlPathMapping(b []byte) []byte {
+	var processedMapping = map[string]string{}
+	r := regexp.MustCompile(`filename=["]?file://(\S+)/Data/Temporary/[^/]*/Cache/Code/Flow_Object_Classes/([^"]*)\.php`)
+	for _, match := range r.FindAllStringSubmatch(string(b), -1) {
 		path := match[1] + "/Data/Temporary/" + p.Config.Context + "/Cache/Code/Flow_Object_Classes/" + match[2] + ".php"
 		if _, ok := processedMapping[path]; ok == false {
 			if originalPath, exist := mapping[path]; exist {
@@ -61,17 +85,10 @@ func (p *PathMapper) ApplyMappingToXML(xml []byte) []byte {
 	for path, originalPath := range processedMapping {
 		path = p.getRealFilename(path)
 		originalPath = p.getRealFilename(originalPath)
-		xml = bytes.Replace(xml, []byte(path), []byte(originalPath), -1)
-	}
-	s := strings.Split(string(xml), "\x00")
-	i, err := strconv.Atoi(s[0])
-	errorhandler.PanicHandling(err)
-	l := len(s[1])
-	if i != l {
-		xml = bytes.Replace(xml, []byte(strconv.Itoa(i)), []byte(strconv.Itoa(l)), 1)
+		b = bytes.Replace(b, []byte(path), []byte(originalPath), -1)
 	}
 
-	return xml
+	return b
 }
 
 //getRealFilename remove protocol from the given path
