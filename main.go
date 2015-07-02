@@ -53,11 +53,11 @@ func main() {
 		localAddr := cli.String("xdebug")
 		remoteAddr := cli.String("ide")
 		laddr, err := net.ResolveTCPAddr("tcp", localAddr)
-		errorhandler.Handling(err)
+		errorhandler.PanicHandling(err)
 		raddr, err := net.ResolveTCPAddr("tcp", remoteAddr)
-		errorhandler.Handling(err)
+		errorhandler.PanicHandling(err)
 		listener, err := net.ListenTCP("tcp", laddr)
-		errorhandler.Handling(err)
+		errorhandler.PanicHandling(err)
 
 		logger.Info("Debugger from %v\nIDE      from %v\n", localAddr, remoteAddr)
 

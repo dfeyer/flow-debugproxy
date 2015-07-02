@@ -63,7 +63,7 @@ func ApplyMappingToXML(xml []byte) []byte {
 	}
 	s := strings.Split(string(xml), "\x00")
 	i, err := strconv.Atoi(s[0])
-	errorhandler.Handling(err)
+	errorhandler.PanicHandling(err)
 	l := len(s[1])
 	if i != l {
 		xml = bytes.Replace(xml, []byte(strconv.Itoa(i)), []byte(strconv.Itoa(l)), 1)
@@ -92,7 +92,7 @@ func mapPath(originalPath string) string {
 
 func registerPathMapping(path string, originalPath string) string {
 	dat, err := ioutil.ReadFile(path)
-	errorhandler.Handling(err)
+	errorhandler.PanicHandling(err)
 	//check if file contains flow annotation
 	if strings.Contains(string(dat), "@Flow\\") {
 		if verbose {
@@ -110,7 +110,7 @@ func registerPathMapping(path string, originalPath string) string {
 
 func readOriginalPathFromCache(path string) string {
 	dat, err := ioutil.ReadFile(path)
-	errorhandler.Handling(err)
+	errorhandler.PanicHandling(err)
 	r := regexp.MustCompile(`(?m)^# PathAndFilename: (.*)$`)
 	match := r.FindStringSubmatch(string(dat))
 	//todo check if the match contain something
