@@ -1,6 +1,7 @@
 package xdebugproxy
 
 import (
+	"github.com/dfeyer/flow-debugproxy/config"
 	"github.com/dfeyer/flow-debugproxy/logger"
 	"github.com/dfeyer/flow-debugproxy/pathmapper"
 
@@ -9,10 +10,6 @@ import (
 	"net"
 )
 
-//todo replace by config module when ready
-var verbose = true
-var veryverbose = true
-
 //Proxy represents a pair of connections and their state
 type Proxy struct {
 	sentBytes     uint64
@@ -20,12 +17,13 @@ type Proxy struct {
 	Laddr, Raddr  *net.TCPAddr
 	Lconn, rconn  *net.TCPConn
 	PathMapper    *pathmapper.PathMapper
+	Config        *config.Config
 	Erred         bool
 	Errsig        chan bool
 }
 
 func (p *Proxy) log(s string, args ...interface{}) {
-	if verbose {
+	if p.Config.Verbose {
 		logger.Info(s, args...)
 	}
 }
@@ -87,7 +85,7 @@ func (p *Proxy) pipe(src, dst *net.TCPConn) {
 		}
 		b := buff[:n]
 		p.log(h, f)
-		if veryverbose {
+		if p.Config.VeryVerbose {
 			if isFromDebugger {
 				p.log("Raw protocol:\n%s\n", logger.Colorize(fmt.Sprintf(h, b), "blue"))
 			} else {
@@ -101,7 +99,7 @@ func (p *Proxy) pipe(src, dst *net.TCPConn) {
 			b = p.PathMapper.ApplyMappingToTextProtocol(b)
 		}
 		//show output
-		if veryverbose {
+		if p.Config.VeryVerbose {
 			if isFromDebugger {
 				p.log("Processed protocol:\n%s\n", logger.Colorize(fmt.Sprintf(h, b), "blue"))
 			} else {
