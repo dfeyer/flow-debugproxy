@@ -19,6 +19,7 @@ type Proxy struct {
 	receivedBytes uint64
 	Laddr, Raddr  *net.TCPAddr
 	Lconn, rconn  *net.TCPConn
+	PathMapper    *pathmapper.PathMapper
 	Erred         bool
 	Errsig        chan bool
 }
@@ -95,9 +96,9 @@ func (p *Proxy) pipe(src, dst *net.TCPConn) {
 		}
 		//extract command name
 		if isFromDebugger {
-			b = pathmapper.ApplyMappingToXML(b)
+			b = p.PathMapper.ApplyMappingToXML(b)
 		} else {
-			b = pathmapper.ApplyMappingToTextProtocol(b)
+			b = p.PathMapper.ApplyMappingToTextProtocol(b)
 		}
 		//show output
 		if veryverbose {
