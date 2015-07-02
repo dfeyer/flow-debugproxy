@@ -99,7 +99,7 @@ func (p *PathMapper) registerPathMapping(path string, originalPath string) strin
 	if strings.Contains(string(dat), "@Flow\\") {
 		if p.Config.Verbose {
 			logger.Info("%s", "Our Umpa Lumpa take care of your mapping and they did a great job, they found a proxy for you:")
-			logger.Info(">>> %s\n", path, "green")
+			logger.Info(">>> %s\n", path)
 		}
 
 		if _, exist := mapping[path]; exist == false {
