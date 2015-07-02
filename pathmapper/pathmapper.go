@@ -45,7 +45,7 @@ func (p *PathMapper) ApplyMappingToXML(xml []byte) []byte {
 
 func (p *PathMapper) doTextPathMapping(b []byte) []byte {
 	var processedMapping = map[string]string{}
-	r := regexp.MustCompile(`file://([^ ]*\.php)`)
+	r := regexp.MustCompile(`(?://)?(/[^ ]*\.php)`)
 	for _, match := range r.FindAllStringSubmatch(string(b), -1) {
 		originalPath := match[1]
 		path := p.mapPath(originalPath)
