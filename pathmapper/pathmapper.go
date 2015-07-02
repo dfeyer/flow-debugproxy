@@ -132,13 +132,15 @@ func (p *PathMapper) readOriginalPathFromCache(path string) string {
 	errorhandler.PanicHandling(err)
 	r := regexp.MustCompile(`(?m)^# PathAndFilename: (.*)$`)
 	match := r.FindStringSubmatch(string(dat))
-	//todo check if the match contain something
-	originalPath := match[1]
-	if p.Config.VeryVerbose {
-		logger.Info("Umpa Lumpa need to work harder, need to reverse this one\n>>> %s\n>>> %s\n", logger.Colorize(fmt.Sprintf(h, path), "yellow"), logger.Colorize(fmt.Sprintf(h, originalPath), "green"))
+	if len(match) == 2 {
+		originalPath := match[1]
+		if p.Config.VeryVerbose {
+			logger.Info("Umpa Lumpa need to work harder, need to reverse this one\n>>> %s\n>>> %s\n", logger.Colorize(fmt.Sprintf(h, path), "yellow"), logger.Colorize(fmt.Sprintf(h, originalPath), "green"))
+		}
+		p.registerPathMapping(path, originalPath)
+		return originalPath
 	}
-	p.registerPathMapping(path, originalPath)
-	return originalPath
+	return path
 }
 
 func (p *PathMapper) buildClassNameFromPath(path string) []string {
