@@ -29,7 +29,7 @@ func (p *PathMapper) ApplyMappingToTextProtocol(protocol []byte) []byte {
 
 //ApplyMappingToXML change file path in xDebug XML protocol
 func (p *PathMapper) ApplyMappingToXML(xml []byte) []byte {
-	xml = p.doXmlPathMapping(xml)
+	xml = p.doXMLPathMapping(xml)
 
 	//update xml length count
 	s := strings.Split(string(xml), "\x00")
@@ -64,7 +64,7 @@ func (p *PathMapper) doTextPathMapping(b []byte) []byte {
 	return b
 }
 
-func (p *PathMapper) doXmlPathMapping(b []byte) []byte {
+func (p *PathMapper) doXMLPathMapping(b []byte) []byte {
 	var processedMapping = map[string]string{}
 	r := regexp.MustCompile(`filename=["]?file://(\S+)/Data/Temporary/[^/]*/Cache/Code/Flow_Object_Classes/([^"]*)\.php`)
 	for _, match := range r.FindAllStringSubmatch(string(b), -1) {
