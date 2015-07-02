@@ -40,6 +40,7 @@ func (p *Proxy) err(s string, err error) {
 	p.Erred = true
 }
 
+//Start the proxy
 func (p *Proxy) Start() {
 	var h = "%s"
 	defer p.Lconn.Close()
