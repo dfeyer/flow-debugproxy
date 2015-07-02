@@ -1,8 +1,10 @@
 package main
 
 import (
+	"github.com/dfeyer/flow-debugproxy/config"
 	"github.com/dfeyer/flow-debugproxy/errorhandler"
 	"github.com/dfeyer/flow-debugproxy/logger"
+	"github.com/dfeyer/flow-debugproxy/pathmapper"
 	"github.com/dfeyer/flow-debugproxy/xdebugproxy"
 
 	"github.com/codegangsta/cli"
@@ -52,6 +54,7 @@ func main() {
 	app.Action = func(cli *cli.Context) {
 		localAddr := cli.String("xdebug")
 		remoteAddr := cli.String("ide")
+		context := cli.String("context")
 		laddr, err := net.ResolveTCPAddr("tcp", localAddr)
 		errorhandler.PanicHandling(err)
 		raddr, err := net.ResolveTCPAddr("tcp", remoteAddr)
@@ -68,6 +71,12 @@ func main() {
 			verbose = true
 		}
 
+		config := &config.Config{
+			Context:     context,
+			Verbose:     verbose,
+			VeryVerbose: veryverbose,
+		}
+
 		for {
 			conn, err := listener.AcceptTCP()
 			if err != nil {
@@ -77,9 +86,13 @@ func main() {
 			connid++
 
 			proxy := &xdebugproxy.Proxy{
-				Lconn:  conn,
-				Laddr:  laddr,
-				Raddr:  raddr,
+				Lconn: conn,
+				Laddr: laddr,
+				Raddr: raddr,
+				PathMapper: &pathmapper.PathMapper{
+					Config: config,
+				},
+				Config: config,
 				Erred:  false,
 				Errsig: make(chan bool),
 			}
