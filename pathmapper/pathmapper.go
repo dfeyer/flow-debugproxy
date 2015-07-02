@@ -40,11 +40,11 @@ func (p *PathMapper) ApplyMappingToTextProtocol(protocol []byte) []byte {
 
 //ApplyMappingToXML change file path in xDebug XML protocol
 func (p *PathMapper) ApplyMappingToXML(xml []byte) []byte {
-	r := regexp.MustCompile(`filename=["]?file://(\S+)/Data/Temporary/Development/Cache/Code/Flow_Object_Classes/([^"]*)\.php`)
+	r := regexp.MustCompile(`filename=["]?file://(\S+)/Data/Temporary/[^/]*/Cache/Code/Flow_Object_Classes/([^"]*)\.php`)
 	var processedMapping = map[string]string{}
 
 	for _, match := range r.FindAllStringSubmatch(string(xml), -1) {
-		path := match[1] + "/Data/Temporary/Development/Cache/Code/Flow_Object_Classes/" + match[2] + ".php"
+		path := match[1] + "/Data/Temporary/" + p.Config.Context + "/Cache/Code/Flow_Object_Classes/" + match[2] + ".php"
 		if _, ok := processedMapping[path]; ok == false {
 			if originalPath, exist := mapping[path]; exist {
 				if p.Config.VeryVerbose {
@@ -82,7 +82,7 @@ func (p *PathMapper) getRealFilename(path string) string {
 func (p *PathMapper) mapPath(originalPath string) string {
 	if strings.Contains(originalPath, "/Packages/") {
 		parts := p.buildClassNameFromPath(originalPath)
-		codeCacheFileName := parts[0] + "/Data/Temporary/Development/Cache/Code/Flow_Object_Classes/" + parts[1] + ".php"
+		codeCacheFileName := parts[0] + "/Data/Temporary/" + p.Config.Context + "/Cache/Code/Flow_Object_Classes/" + parts[1] + ".php"
 		realCodeCacheFileName := p.getRealFilename(codeCacheFileName)
 		if _, err := os.Stat(realCodeCacheFileName); err == nil {
 			return p.registerPathMapping(realCodeCacheFileName, originalPath)
