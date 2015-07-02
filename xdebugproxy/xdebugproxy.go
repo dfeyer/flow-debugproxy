@@ -41,11 +41,16 @@ func (p *Proxy) err(s string, err error) {
 }
 
 func (p *Proxy) Start() {
+	var h = "%s"
 	defer p.Lconn.Close()
 	//connect to remote
 	rconn, err := net.DialTCP("tcp", nil, p.Raddr)
 	if err != nil {
-		p.err("Remote connection failed: %s", err)
+		p.log(h, "Unable to connect to your IDE, please check if your editor listen to incoming connection")
+		p.log("Error message: %s", err)
+		p.log(h, "Configure your IDE and reload the web page should solve this issue")
+		p.log(h, "\nHit Ctrl-C to exit the proxy if don't need it ...")
+		p.log(h, "\nYour fellow Umpa Lumpa")
 		return
 	}
 	p.rconn = rconn
