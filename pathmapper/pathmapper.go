@@ -14,24 +14,32 @@ import (
 	"strings"
 )
 
-var h = "%s"
-var mapping = map[string]string{}
+const h = "%s"
 
-//PathMapper handle the mapping between real code and proxy
+var (
+	mapping               = map[string]string{}
+	regexpPhpFile         = regexp.MustCompile(`(?://)?(/[^ ]*\.php)`)
+	regexpFilename        = regexp.MustCompile(`filename=["]?file://(\S+)/Data/Temporary/[^/]*/Cache/Code/Flow_Object_Classes/([^"]*)\.php`)
+	regexpPathAndFilename = regexp.MustCompile(`(?m)^# PathAndFilename: (.*)$`)
+	regexpPackageClass    = regexp.MustCompile(`(.*?)/Packages/(.*?)/Classes/(.*).php`)
+	regexpDot             = regexp.MustCompile(`[\./]`)
+)
+
+// PathMapper handle the mapping between real code and proxy
 type PathMapper struct {
 	Config *config.Config
 }
 
-//ApplyMappingToTextProtocol change file path in xDebug text protocol
+// ApplyMappingToTextProtocol change file path in xDebug text protocol
 func (p *PathMapper) ApplyMappingToTextProtocol(protocol []byte) []byte {
 	return p.doTextPathMapping(protocol)
 }
 
-//ApplyMappingToXML change file path in xDebug XML protocol
+// ApplyMappingToXML change file path in xDebug XML protocol
 func (p *PathMapper) ApplyMappingToXML(xml []byte) []byte {
 	xml = p.doXMLPathMapping(xml)
 
-	//update xml length count
+	// update xml length count
 	s := strings.Split(string(xml), "\x00")
 	i, err := strconv.Atoi(s[0])
 	errorhandler.PanicHandling(err)
@@ -45,8 +53,7 @@ func (p *PathMapper) ApplyMappingToXML(xml []byte) []byte {
 
 func (p *PathMapper) doTextPathMapping(b []byte) []byte {
 	var processedMapping = map[string]string{}
-	r := regexp.MustCompile(`(?://)?(/[^ ]*\.php)`)
-	for _, match := range r.FindAllStringSubmatch(string(b), -1) {
+	for _, match := range regexpPhpFile.FindAllStringSubmatch(string(b), -1) {
 		originalPath := match[1]
 		path := p.mapPath(originalPath)
 		if _, ok := processedMapping[path]; ok == false {
@@ -66,8 +73,7 @@ func (p *PathMapper) doTextPathMapping(b []byte) []byte {
 
 func (p *PathMapper) doXMLPathMapping(b []byte) []byte {
 	var processedMapping = map[string]string{}
-	r := regexp.MustCompile(`filename=["]?file://(\S+)/Data/Temporary/[^/]*/Cache/Code/Flow_Object_Classes/([^"]*)\.php`)
-	for _, match := range r.FindAllStringSubmatch(string(b), -1) {
+	for _, match := range regexpFilename.FindAllStringSubmatch(string(b), -1) {
 		path := match[1] + "/Data/Temporary/" + p.Config.Context + "/Cache/Code/Flow_Object_Classes/" + match[2] + ".php"
 		if _, ok := processedMapping[path]; ok == false {
 			if originalPath, exist := mapping[path]; exist {
@@ -91,7 +97,7 @@ func (p *PathMapper) doXMLPathMapping(b []byte) []byte {
 	return b
 }
 
-//getRealFilename remove protocol from the given path
+// getRealFilename removes file:// protocol from the given path
 func (p *PathMapper) getRealFilename(path string) string {
 	return strings.TrimPrefix(path, "file://")
 }
@@ -112,7 +118,7 @@ func (p *PathMapper) mapPath(originalPath string) string {
 func (p *PathMapper) registerPathMapping(path string, originalPath string) string {
 	dat, err := ioutil.ReadFile(path)
 	errorhandler.PanicHandling(err)
-	//check if file contains flow annotation
+	// check if file contains flow annotation
 	if strings.Contains(string(dat), "@Flow\\") {
 		if p.Config.Verbose {
 			logger.Info("%s", "Our Umpa Lumpa take care of your mapping and they did a great job, they found a proxy for you:")
@@ -130,8 +136,7 @@ func (p *PathMapper) registerPathMapping(path string, originalPath string) strin
 func (p *PathMapper) readOriginalPathFromCache(path string) string {
 	dat, err := ioutil.ReadFile(path)
 	errorhandler.PanicHandling(err)
-	r := regexp.MustCompile(`(?m)^# PathAndFilename: (.*)$`)
-	match := r.FindStringSubmatch(string(dat))
+	match := regexpPathAndFilename.FindStringSubmatch(string(dat))
 	if len(match) == 2 {
 		originalPath := match[1]
 		if p.Config.VeryVerbose {
@@ -145,10 +150,8 @@ func (p *PathMapper) readOriginalPathFromCache(path string) string {
 
 func (p *PathMapper) buildClassNameFromPath(path string) []string {
 	// todo add support for PSR4
-	r := regexp.MustCompile(`(.*?)/Packages/(.*?)/Classes/(.*).php`)
-	match := r.FindStringSubmatch(path)
+	match := regexpPackageClass.FindStringSubmatch(path)
 	basePath := match[1]
-	r = regexp.MustCompile(`[\./]`)
-	className := r.ReplaceAllString(match[3], "_")
+	className := regexpDot.ReplaceAllString(match[3], "_")
 	return []string{basePath, className}
 }
