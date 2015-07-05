@@ -57,7 +57,6 @@ func (p *PathMapper) doTextPathMapping(b []byte) []byte {
 		originalPath := match[1]
 		path := p.mapPath(originalPath)
 		if _, ok := processedMapping[path]; ok == false {
-			originalPath = p.readOriginalPathFromCache(path)
 			processedMapping[path] = originalPath
 		}
 	}
