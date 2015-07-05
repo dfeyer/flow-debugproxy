@@ -8,14 +8,10 @@ import (
 	"github.com/dfeyer/flow-debugproxy/xdebugproxy"
 
 	"github.com/codegangsta/cli"
+
 	"net"
 	"os"
 )
-
-var connid = uint64(0)
-var verbose = false
-var veryverbose = false
-var h = "%s"
 
 func main() {
 	app := cli.NewApp()
@@ -64,12 +60,8 @@ func main() {
 
 		logger.Info("Debugger from %v\nIDE      from %v\n", localAddr, remoteAddr)
 
-		verbose = cli.Bool("verbose")
-		veryverbose = cli.Bool("vv")
-
-		if veryverbose {
-			verbose = true
-		}
+		veryverbose := cli.Bool("vv")
+		verbose := cli.Bool("verbose") || veryverbose
 
 		config := &config.Config{
 			Context:     context,
@@ -83,18 +75,14 @@ func main() {
 				logger.Warn("Failed to accept connection '%s'\n", err)
 				continue
 			}
-			connid++
 
 			proxy := &xdebugproxy.Proxy{
 				Lconn: conn,
-				Laddr: laddr,
 				Raddr: raddr,
 				PathMapper: &pathmapper.PathMapper{
 					Config: config,
 				},
 				Config: config,
-				Erred:  false,
-				Errsig: make(chan bool),
 			}
 			go proxy.Start()
 		}

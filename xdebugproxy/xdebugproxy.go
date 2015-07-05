@@ -10,16 +10,17 @@ import (
 	"net"
 )
 
-//Proxy represents a pair of connections and their state
+const h = "%s"
+
+// Proxy represents a pair of connections and their state
 type Proxy struct {
 	sentBytes     uint64
 	receivedBytes uint64
-	Laddr, Raddr  *net.TCPAddr
+	Raddr         *net.TCPAddr
 	Lconn, rconn  *net.TCPConn
 	PathMapper    *pathmapper.PathMapper
 	Config        *config.Config
-	Erred         bool
-	Errsig        chan bool
+	pipeErrors    chan error
 }
 
 func (p *Proxy) log(s string, args ...interface{}) {
@@ -28,22 +29,11 @@ func (p *Proxy) log(s string, args ...interface{}) {
 	}
 }
 
-func (p *Proxy) err(s string, err error) {
-	if p.Erred {
-		return
-	}
-	if err != io.EOF {
-		logger.Warn(s, err)
-	}
-	p.Errsig <- true
-	p.Erred = true
-}
-
-//Start the proxy
+// Start the proxy
 func (p *Proxy) Start() {
-	var h = "%s"
 	defer p.Lconn.Close()
-	//connect to remote
+
+	// connect to remote
 	rconn, err := net.DialTCP("tcp", nil, p.Raddr)
 	if err != nil {
 		p.log(h, "Unable to connect to your IDE, please check if your editor listen to incoming connection")
@@ -53,20 +43,29 @@ func (p *Proxy) Start() {
 		p.log(h, "\nYour fellow Umpa Lumpa")
 		return
 	}
+
 	p.rconn = rconn
 	defer p.rconn.Close()
-	//display both ends
+
+	p.pipeErrors = make(chan error)
+	defer close(p.pipeErrors)
+
+	// display both ends
 	p.log("Opened %s >>> %s", p.Lconn.RemoteAddr().String(), p.rconn.RemoteAddr().String())
-	//bidirectional copy
+	// bidirectional copy
 	go p.pipe(p.Lconn, p.rconn)
 	go p.pipe(p.rconn, p.Lconn)
-	//wait for close...
-	<-p.Errsig
+
+	if err = <-p.pipeErrors; err != io.EOF {
+		logger.Warn(h, err)
+	}
+	<-p.pipeErrors
+
 	p.log("Closed (%d bytes sent, %d bytes recieved)", p.sentBytes, p.receivedBytes)
 }
 
 func (p *Proxy) pipe(src, dst *net.TCPConn) {
-	//data direction
+	// data direction
 	var f, h string
 	isFromDebugger := src == p.Lconn
 	if isFromDebugger {
@@ -75,12 +74,14 @@ func (p *Proxy) pipe(src, dst *net.TCPConn) {
 		f = "\nIDE >>> Debugger\n================"
 	}
 	h = "%s"
-	//directional copy (64k buffer)
+	// directional copy (64k buffer)
 	buff := make([]byte, 0xffff)
 	for {
 		n, err := src.Read(buff)
 		if err != nil {
-			p.err("Read failed '%s'\n", err)
+			p.pipeErrors <- err
+			// make sure the other pipe will stop as well
+			dst.Close()
 			return
 		}
 		b := buff[:n]
@@ -92,13 +93,13 @@ func (p *Proxy) pipe(src, dst *net.TCPConn) {
 				p.log("Raw protocol:\n%s\n", logger.Colorize(fmt.Sprintf(h, logger.FormatTextProtocol(b)), "blue"))
 			}
 		}
-		//extract command name
+		// extract command name
 		if isFromDebugger {
 			b = p.PathMapper.ApplyMappingToXML(b)
 		} else {
 			b = p.PathMapper.ApplyMappingToTextProtocol(b)
 		}
-		//show output
+		// show output
 		if p.Config.VeryVerbose {
 			if isFromDebugger {
 				p.log("Processed protocol:\n%s\n", logger.Colorize(fmt.Sprintf(h, b), "blue"))
@@ -108,10 +109,12 @@ func (p *Proxy) pipe(src, dst *net.TCPConn) {
 		} else {
 			p.log(h, "")
 		}
-		//write out result
+		// write out result
 		n, err = dst.Write(b)
 		if err != nil {
-			p.err("Write failed '%s'\n", err)
+			p.pipeErrors <- err
+			// make sure the other pipe will stop as well
+			src.Close()
 			return
 		}
 		if isFromDebugger {
