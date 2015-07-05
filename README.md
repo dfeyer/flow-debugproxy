@@ -13,8 +13,6 @@ with Flow is a real pleasure, but adding xDebug in the setup can be a pain.
 This project is an xDebug proxy, written in Go, to take care of the mapping
 between your PHP file and the proxy class.
 
-Currently this project is under development and not ready for a daily usage.
-
 Build your own
 --------------
 
