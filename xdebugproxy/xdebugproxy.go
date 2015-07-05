@@ -73,7 +73,6 @@ func (p *Proxy) pipe(src, dst *net.TCPConn) {
 	} else {
 		f = "\nIDE >>> Debugger\n================"
 	}
-	h = "%s"
 	// directional copy (64k buffer)
 	buff := make([]byte, 0xffff)
 	for {
