@@ -31,29 +31,29 @@ type PathMapper struct {
 }
 
 // ApplyMappingToTextProtocol change file path in xDebug text protocol
-func (p *PathMapper) ApplyMappingToTextProtocol(protocol []byte) []byte {
-	return p.doTextPathMapping(protocol)
+func (p *PathMapper) ApplyMappingToTextProtocol(message []byte) []byte {
+	return p.doTextPathMapping(message)
 }
 
 // ApplyMappingToXML change file path in xDebug XML protocol
-func (p *PathMapper) ApplyMappingToXML(xml []byte) []byte {
-	xml = p.doXMLPathMapping(xml)
+func (p *PathMapper) ApplyMappingToXML(message []byte) []byte {
+	message = p.doXMLPathMapping(message)
 
 	// update xml length count
-	s := strings.Split(string(xml), "\x00")
+	s := strings.Split(string(message), "\x00")
 	i, err := strconv.Atoi(s[0])
 	errorhandler.PanicHandling(err)
 	l := len(s[1])
 	if i != l {
-		xml = bytes.Replace(xml, []byte(strconv.Itoa(i)), []byte(strconv.Itoa(l)), 1)
+		message = bytes.Replace(message, []byte(strconv.Itoa(i)), []byte(strconv.Itoa(l)), 1)
 	}
 
-	return xml
+	return message
 }
 
-func (p *PathMapper) doTextPathMapping(b []byte) []byte {
+func (p *PathMapper) doTextPathMapping(message []byte) []byte {
 	var processedMapping = map[string]string{}
-	for _, match := range regexpPhpFile.FindAllStringSubmatch(string(b), -1) {
+	for _, match := range regexpPhpFile.FindAllStringSubmatch(string(message), -1) {
 		originalPath := match[1]
 		path := p.mapPath(originalPath)
 		if _, ok := processedMapping[path]; ok == false {
@@ -64,10 +64,10 @@ func (p *PathMapper) doTextPathMapping(b []byte) []byte {
 	for path, originalPath := range processedMapping {
 		path = p.getRealFilename(path)
 		originalPath = p.getRealFilename(originalPath)
-		b = bytes.Replace(b, []byte(originalPath), []byte(path), -1)
+		message = bytes.Replace(message, []byte(originalPath), []byte(path), -1)
 	}
 
-	return b
+	return message
 }
 
 func (p *PathMapper) doXMLPathMapping(b []byte) []byte {
