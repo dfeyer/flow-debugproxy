@@ -3,8 +3,8 @@ package main
 import (
 	"github.com/dfeyer/flow-debugproxy/config"
 	"github.com/dfeyer/flow-debugproxy/errorhandler"
-	"github.com/dfeyer/flow-debugproxy/flowpathmapper"
 	"github.com/dfeyer/flow-debugproxy/logger"
+	"github.com/dfeyer/flow-debugproxy/pathmapperfactory"
 	"github.com/dfeyer/flow-debugproxy/xdebugproxy"
 
 	"github.com/codegangsta/cli"
@@ -37,6 +37,11 @@ func main() {
 			Value: "Development",
 			Usage: "The context to run as",
 		},
+		cli.StringFlag{
+			Name:  "framework",
+			Value: "flow",
+			Usage: "Framework support, currently on Flow framework is supported",
+		},
 		cli.BoolFlag{
 			Name:  "verbose",
 			Usage: "Verbose",
@@ -51,6 +56,7 @@ func main() {
 		localAddr := cli.String("xdebug")
 		remoteAddr := cli.String("ide")
 		context := cli.String("context")
+		framework := cli.String("framework")
 		laddr, err := net.ResolveTCPAddr("tcp", localAddr)
 		errorhandler.PanicHandling(err)
 		raddr, err := net.ResolveTCPAddr("tcp", remoteAddr)
@@ -65,13 +71,13 @@ func main() {
 
 		config := &config.Config{
 			Context:     context,
+			Framework:   framework,
 			Verbose:     verbose,
 			VeryVerbose: veryverbose,
 		}
 
-		pathMapper := flowpathmapper.PathMapper{
-			Config: config,
-		}
+		pathMapper, err := pathmapperfactory.Create(config)
+		errorhandler.PanicHandling(err)
 
 		for {
 			conn, err := listener.AcceptTCP()
@@ -83,7 +89,7 @@ func main() {
 			proxy := &xdebugproxy.Proxy{
 				Lconn:      conn,
 				Raddr:      raddr,
-				PathMapper: &pathMapper,
+				PathMapper: pathMapper,
 				Config:     config,
 			}
 			go proxy.Start()
