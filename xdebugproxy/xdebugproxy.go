@@ -3,7 +3,6 @@ package xdebugproxy
 import (
 	"github.com/dfeyer/flow-debugproxy/config"
 	"github.com/dfeyer/flow-debugproxy/logger"
-	"github.com/dfeyer/flow-debugproxy/pathmapper"
 
 	"fmt"
 	"io"
@@ -12,21 +11,22 @@ import (
 
 const h = "%s"
 
-// Proxy represents a pair of connections and their state
-type Proxy struct {
-	sentBytes     uint64
-	receivedBytes uint64
-	Raddr         *net.TCPAddr
-	Lconn, rconn  *net.TCPConn
-	PathMapper    *pathmapper.PathMapper
-	Config        *config.Config
-	pipeErrors    chan error
+// xDebugProcessorPlugin process message in xDebug protocol
+type xDebugProcessorPlugin interface {
+	ApplyMappingToTextProtocol(message []byte) []byte
+	ApplyMappingToXML(message []byte) []byte
 }
 
-func (p *Proxy) log(s string, args ...interface{}) {
-	if p.Config.Verbose {
-		logger.Info(s, args...)
-	}
+// Proxy represents a pair of connections and their state
+type Proxy struct {
+	sentBytes      uint64
+	receivedBytes  uint64
+	Raddr          *net.TCPAddr
+	Lconn, rconn   *net.TCPConn
+	PathMapper     xDebugProcessorPlugin
+	Config         *config.Config
+	postProcessors []xDebugProcessorPlugin
+	pipeErrors     chan error
 }
 
 // Start the proxy
@@ -64,9 +64,21 @@ func (p *Proxy) Start() {
 	p.log("Closed (%d bytes sent, %d bytes recieved)", p.sentBytes, p.receivedBytes)
 }
 
+// RegisterPostProcessor add a new message post processor
+func (p *Proxy) RegisterPostProcessor(processor xDebugProcessorPlugin) {
+	p.postProcessors = append(p.postProcessors, processor)
+}
+
+func (p *Proxy) log(s string, args ...interface{}) {
+	if p.Config.Verbose {
+		logger.Info(s, args...)
+	}
+}
+
 func (p *Proxy) pipe(src, dst *net.TCPConn) {
 	// data direction
 	var f, h string
+	var processor xDebugProcessorPlugin
 	isFromDebugger := src == p.Lconn
 	if isFromDebugger {
 		f = "\nDebugger >>> IDE\n================"
@@ -96,9 +108,20 @@ func (p *Proxy) pipe(src, dst *net.TCPConn) {
 		// extract command name
 		if isFromDebugger {
 			b = p.PathMapper.ApplyMappingToXML(b)
+			// post processors
+			for _, d := range p.postProcessors {
+				processor = d
+				b = processor.ApplyMappingToXML(b)
+			}
 		} else {
 			b = p.PathMapper.ApplyMappingToTextProtocol(b)
+			// post processors
+			for _, d := range p.postProcessors {
+				processor = d
+				b = processor.ApplyMappingToTextProtocol(b)
+			}
 		}
+
 		// show output
 		if p.Config.VeryVerbose {
 			if isFromDebugger {
@@ -109,6 +132,7 @@ func (p *Proxy) pipe(src, dst *net.TCPConn) {
 		} else {
 			p.log(h, "")
 		}
+
 		// write out result
 		n, err = dst.Write(b)
 		if err != nil {
