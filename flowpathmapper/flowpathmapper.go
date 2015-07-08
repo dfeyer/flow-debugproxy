@@ -1,4 +1,4 @@
-package pathmapper
+package flowpathmapper
 
 import (
 	"github.com/dfeyer/flow-debugproxy/config"
@@ -14,7 +14,10 @@ import (
 	"strings"
 )
 
-const h = "%s"
+const (
+	h                = "%s"
+	cachePathPattern = "@base@/Data/Temporary/@context@/Cache/Code/Flow_Object_Classes/@filename@.php"
+)
 
 var (
 	mapping               = map[string]string{}
@@ -70,10 +73,16 @@ func (p *PathMapper) doTextPathMapping(message []byte) []byte {
 	return message
 }
 
+func (p *PathMapper) getCachePath(base, filename string) string {
+	cachePath := strings.Replace(cachePathPattern, "@base", base, 1)
+	cachePath = strings.Replace(cachePath, "@context", p.Config.Context, 1)
+	return strings.Replace(cachePath, "@filename", filename, 1)
+}
+
 func (p *PathMapper) doXMLPathMapping(b []byte) []byte {
 	var processedMapping = map[string]string{}
 	for _, match := range regexpFilename.FindAllStringSubmatch(string(b), -1) {
-		path := match[1] + "/Data/Temporary/" + p.Config.Context + "/Cache/Code/Flow_Object_Classes/" + match[2] + ".php"
+		path := p.getCachePath(match[1], match[2])
 		if _, ok := processedMapping[path]; ok == false {
 			if originalPath, exist := mapping[path]; exist {
 				if p.Config.VeryVerbose {
@@ -104,10 +113,10 @@ func (p *PathMapper) getRealFilename(path string) string {
 func (p *PathMapper) mapPath(originalPath string) string {
 	if strings.Contains(originalPath, "/Packages/") {
 		parts := p.buildClassNameFromPath(originalPath)
-		codeCacheFileName := parts[0] + "/Data/Temporary/" + p.Config.Context + "/Cache/Code/Flow_Object_Classes/" + parts[1] + ".php"
-		realCodeCacheFileName := p.getRealFilename(codeCacheFileName)
-		if _, err := os.Stat(realCodeCacheFileName); err == nil {
-			return p.registerPathMapping(realCodeCacheFileName, originalPath)
+		cachePath := p.getCachePath(parts[0], parts[1])
+		realPath := p.getRealFilename(cachePath)
+		if _, err := os.Stat(realPath); err == nil {
+			return p.registerPathMapping(realPath, originalPath)
 		}
 	}
 

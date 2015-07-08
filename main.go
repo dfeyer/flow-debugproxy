@@ -3,8 +3,8 @@ package main
 import (
 	"github.com/dfeyer/flow-debugproxy/config"
 	"github.com/dfeyer/flow-debugproxy/errorhandler"
+	"github.com/dfeyer/flow-debugproxy/flowpathmapper"
 	"github.com/dfeyer/flow-debugproxy/logger"
-	"github.com/dfeyer/flow-debugproxy/pathmapper"
 	"github.com/dfeyer/flow-debugproxy/xdebugproxy"
 
 	"github.com/codegangsta/cli"
@@ -69,6 +69,10 @@ func main() {
 			VeryVerbose: veryverbose,
 		}
 
+		pathMapper := flowpathmapper.PathMapper{
+			Config: config,
+		}
+
 		for {
 			conn, err := listener.AcceptTCP()
 			if err != nil {
@@ -77,12 +81,10 @@ func main() {
 			}
 
 			proxy := &xdebugproxy.Proxy{
-				Lconn: conn,
-				Raddr: raddr,
-				PathMapper: &pathmapper.PathMapper{
-					Config: config,
-				},
-				Config: config,
+				Lconn:      conn,
+				Raddr:      raddr,
+				PathMapper: &pathMapper,
+				Config:     config,
 			}
 			go proxy.Start()
 		}
