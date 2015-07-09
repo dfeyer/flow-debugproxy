@@ -5,7 +5,8 @@ import (
 	"os"
 )
 
-func PanicHandling(err error) {
+// PanicHandling handle error and output log message
+func PanicHandling(err error, logger *logger.Logger) {
 	if err != nil {
 		logger.Warn(err.Error())
 		os.Exit(1)

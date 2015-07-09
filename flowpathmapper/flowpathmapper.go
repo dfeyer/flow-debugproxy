@@ -31,6 +31,7 @@ var (
 // PathMapper handle the mapping between real code and proxy
 type PathMapper struct {
 	Config      *config.Config
+	Logger      *logger.Logger
 	PathMapping *pathmapping.PathMapping
 }
 
@@ -46,7 +47,7 @@ func (p *PathMapper) ApplyMappingToXML(message []byte) []byte {
 	// update xml length count
 	s := strings.Split(string(message), "\x00")
 	i, err := strconv.Atoi(s[0])
-	errorhandler.PanicHandling(err)
+	errorhandler.PanicHandling(err, p.Logger)
 	l := len(s[1])
 	if i != l {
 		message = bytes.Replace(message, []byte(strconv.Itoa(i)), []byte(strconv.Itoa(l)), 1)
@@ -60,7 +61,7 @@ func (p *PathMapper) doTextPathMapping(message []byte) []byte {
 	for _, match := range regexpPhpFile.FindAllStringSubmatch(string(message), -1) {
 		originalPath := match[1]
 		path := p.mapPath(originalPath)
-		logger.Debug("doTextPathMapping\n%s >>> %s", path, originalPath)
+		p.Logger.Debug("doTextPathMapping %s >>> %s", path, originalPath)
 		processedMapping[path] = originalPath
 	}
 
@@ -84,14 +85,14 @@ func (p *PathMapper) doXMLPathMapping(b []byte) []byte {
 		if _, ok := processedMapping[path]; ok == false {
 			if originalPath, exist := p.PathMapping.Get(path); exist {
 				if p.Config.VeryVerbose {
-					logger.Info("Umpa Lumpa can help you, he know the mapping\n%s\n%s\n", logger.Colorize(">>> "+fmt.Sprintf(h, path), "yellow"), logger.Colorize(">>> "+fmt.Sprintf(h, p.getRealFilename(originalPath)), "green"))
+					p.Logger.Info("Umpa Lumpa can help you, he know the mapping\n%s\n%s\n", p.Logger.Colorize(">>> "+fmt.Sprintf(h, path), "yellow"), p.Logger.Colorize(">>> "+fmt.Sprintf(h, p.getRealFilename(originalPath)), "green"))
 				}
 				processedMapping[path] = originalPath
-				logger.Debug("doXMLPathMapping mapping exist\n%s >>> %s", path, originalPath)
+				p.Logger.Debug("doXMLPathMapping mapping exist %s >>> %s", path, originalPath)
 			} else {
 				originalPath = p.readOriginalPathFromCache(path)
 				processedMapping[path] = originalPath
-				logger.Debug("doXMLPathMapping missing mapping\n%s >>> %s", path, originalPath)
+				p.Logger.Debug("doXMLPathMapping missing mapping %s >>> %s", path, originalPath)
 			}
 		}
 	}
@@ -112,7 +113,7 @@ func (p *PathMapper) getRealFilename(path string) string {
 
 func (p *PathMapper) mapPath(originalPath string) string {
 	if strings.Contains(originalPath, "/Packages/") {
-		logger.Debug("Path %s is a Flow Package file", originalPath)
+		p.Logger.Debug("Path %s is a Flow Package file", originalPath)
 		cachePath := p.getCachePath(p.buildClassNameFromPath(originalPath))
 		realPath := p.getRealFilename(cachePath)
 		if _, err := os.Stat(realPath); err == nil {
@@ -125,12 +126,12 @@ func (p *PathMapper) mapPath(originalPath string) string {
 
 func (p *PathMapper) registerPathMapping(path string, originalPath string) string {
 	dat, err := ioutil.ReadFile(path)
-	errorhandler.PanicHandling(err)
+	errorhandler.PanicHandling(err, p.Logger)
 	// check if file contains flow annotation
 	if strings.Contains(string(dat), "@Flow\\") {
 		if p.Config.Verbose {
-			logger.Info("%s", "Our Umpa Lumpa take care of your mapping and they did a great job, they found a proxy for you:")
-			logger.Info(">>> %s\n", path)
+			p.Logger.Info("%s", "Our Umpa Lumpa take care of your mapping and they did a great job, they found a proxy for you:")
+			p.Logger.Info(">>> %s\n", path)
 		}
 
 		if p.PathMapping.Has(path) == false {
@@ -143,15 +144,15 @@ func (p *PathMapper) registerPathMapping(path string, originalPath string) strin
 
 func (p *PathMapper) readOriginalPathFromCache(path string) string {
 	dat, err := ioutil.ReadFile(path)
-	errorhandler.PanicHandling(err)
+	errorhandler.PanicHandling(err, p.Logger)
 	match := regexpPathAndFilename.FindStringSubmatch(string(dat))
-	logger.Debug("readOriginalPathFromCache %s", path)
+	p.Logger.Debug("readOriginalPathFromCache %s", path)
 	if len(match) == 2 {
 		originalPath := match[1]
 		if p.Config.VeryVerbose {
-			logger.Info("Umpa Lumpa need to work harder, need to reverse this one\n>>> %s\n>>> %s\n", logger.Colorize(fmt.Sprintf(h, path), "yellow"), logger.Colorize(fmt.Sprintf(h, originalPath), "green"))
+			p.Logger.Info("Umpa Lumpa need to work harder, need to reverse this one\n>>> %s\n>>> %s\n", p.Logger.Colorize(fmt.Sprintf(h, path), "yellow"), p.Logger.Colorize(fmt.Sprintf(h, originalPath), "green"))
 		}
-		logger.Debug("readOriginalPathFromCache %s >>> %s", path, originalPath)
+		p.Logger.Debug("readOriginalPathFromCache %s >>> %s", path, originalPath)
 		p.registerPathMapping(path, originalPath)
 		return originalPath
 	}

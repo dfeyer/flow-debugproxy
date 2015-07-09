@@ -6,4 +6,5 @@ type Config struct {
 	Framework   string
 	Verbose     bool
 	VeryVerbose bool
+	Debug       bool
 }

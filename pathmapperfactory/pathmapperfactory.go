@@ -3,6 +3,7 @@ package pathmapperfactory
 import (
 	"github.com/dfeyer/flow-debugproxy/config"
 	"github.com/dfeyer/flow-debugproxy/flowpathmapper"
+	"github.com/dfeyer/flow-debugproxy/logger"
 	"github.com/dfeyer/flow-debugproxy/pathmapping"
 	"github.com/dfeyer/flow-debugproxy/xdebugproxy"
 
@@ -15,12 +16,13 @@ const (
 )
 
 // Create return a pathmapper for the given framework
-func Create(c *config.Config, p *pathmapping.PathMapping) (xdebugproxy.XDebugProcessorPlugin, error) {
+func Create(c *config.Config, p *pathmapping.PathMapping, l *logger.Logger) (xdebugproxy.XDebugProcessorPlugin, error) {
 	var pathmapper xdebugproxy.XDebugProcessorPlugin
 	switch {
 	case c.Framework == flow:
 		pathmapper = &flowpathmapper.PathMapper{
 			Config:      c,
+			Logger:      l,
 			PathMapping: p,
 		}
 		return pathmapper, nil

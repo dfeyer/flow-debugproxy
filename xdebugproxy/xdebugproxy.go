@@ -25,6 +25,7 @@ type Proxy struct {
 	Lconn, rconn   *net.TCPConn
 	PathMapper     XDebugProcessorPlugin
 	Config         *config.Config
+	Logger         *logger.Logger
 	postProcessors []XDebugProcessorPlugin
 	pipeErrors     chan error
 }
@@ -57,7 +58,7 @@ func (p *Proxy) Start() {
 	go p.pipe(p.rconn, p.Lconn)
 
 	if err = <-p.pipeErrors; err != io.EOF {
-		logger.Warn(h, err)
+		p.Logger.Warn(h, err)
 	}
 	<-p.pipeErrors
 
@@ -71,7 +72,7 @@ func (p *Proxy) RegisterPostProcessor(processor XDebugProcessorPlugin) {
 
 func (p *Proxy) log(s string, args ...interface{}) {
 	if p.Config.Verbose {
-		logger.Info(s, args...)
+		p.Logger.Info(s, args...)
 	}
 }
 
@@ -100,9 +101,9 @@ func (p *Proxy) pipe(src, dst *net.TCPConn) {
 		p.log(h, f)
 		if p.Config.VeryVerbose {
 			if isFromDebugger {
-				p.log("Raw protocol:\n%s\n", logger.Colorize(fmt.Sprintf(h, b), "blue"))
+				p.log("Raw protocol:\n%s\n", p.Logger.Colorize(fmt.Sprintf(h, b), "blue"))
 			} else {
-				p.log("Raw protocol:\n%s\n", logger.Colorize(fmt.Sprintf(h, logger.FormatTextProtocol(b)), "blue"))
+				p.log("Raw protocol:\n%s\n", p.Logger.Colorize(fmt.Sprintf(h, p.Logger.FormatTextProtocol(b)), "blue"))
 			}
 		}
 		// extract command name
@@ -125,9 +126,9 @@ func (p *Proxy) pipe(src, dst *net.TCPConn) {
 		// show output
 		if p.Config.VeryVerbose {
 			if isFromDebugger {
-				p.log("Processed protocol:\n%s\n", logger.Colorize(fmt.Sprintf(h, b), "blue"))
+				p.log("Processed protocol:\n%s\n", p.Logger.Colorize(fmt.Sprintf(h, b), "blue"))
 			} else {
-				p.log("Processed protocol:\n%s\n", logger.Colorize(fmt.Sprintf(h, logger.FormatTextProtocol(b)), "blue"))
+				p.log("Processed protocol:\n%s\n", p.Logger.Colorize(fmt.Sprintf(h, p.Logger.FormatTextProtocol(b)), "blue"))
 			}
 		} else {
 			p.log(h, "")

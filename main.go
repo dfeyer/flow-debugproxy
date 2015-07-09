@@ -51,40 +51,51 @@ func main() {
 			Name:  "vv",
 			Usage: "Very verbose",
 		},
+		cli.BoolFlag{
+			Name:  "debug",
+			Usage: "Show debug output",
+		},
 	}
 
 	app.Action = func(cli *cli.Context) {
-		localAddr := cli.String("xdebug")
-		remoteAddr := cli.String("ide")
 		context := cli.String("context")
 		framework := cli.String("framework")
-		laddr, err := net.ResolveTCPAddr("tcp", localAddr)
-		errorhandler.PanicHandling(err)
-		raddr, err := net.ResolveTCPAddr("tcp", remoteAddr)
-		errorhandler.PanicHandling(err)
-		listener, err := net.ListenTCP("tcp", laddr)
-		errorhandler.PanicHandling(err)
-
-		logger.Info("Debugger from %v\nIDE      from %v\n", localAddr, remoteAddr)
-
+		debug := cli.Bool("debug")
 		veryverbose := cli.Bool("vv")
 		verbose := cli.Bool("verbose") || veryverbose
 
-		config := &config.Config{
+		c := &config.Config{
 			Context:     context,
 			Framework:   framework,
 			Verbose:     verbose,
 			VeryVerbose: veryverbose,
+			Debug:       debug,
 		}
 
-		pathMapping := pathmapping.PathMapping{}
-		pathMapper, err := pathmapperfactory.Create(config, &pathMapping)
-		errorhandler.PanicHandling(err)
+		log := &logger.Logger{
+			Config: c,
+		}
+
+		localAddr := cli.String("xdebug")
+		remoteAddr := cli.String("ide")
+
+		laddr, err := net.ResolveTCPAddr("tcp", localAddr)
+		errorhandler.PanicHandling(err, log)
+		raddr, err := net.ResolveTCPAddr("tcp", remoteAddr)
+		errorhandler.PanicHandling(err, log)
+		listener, err := net.ListenTCP("tcp", laddr)
+		errorhandler.PanicHandling(err, log)
+
+		log.Info("Debugger from %v\nIDE      from %v\n", localAddr, remoteAddr)
+
+		pathMapping := &pathmapping.PathMapping{}
+		pathMapper, err := pathmapperfactory.Create(c, pathMapping, log)
+		errorhandler.PanicHandling(err, log)
 
 		for {
 			conn, err := listener.AcceptTCP()
 			if err != nil {
-				logger.Warn("Failed to accept connection '%s'\n", err)
+				log.Warn("Failed to accept connection '%s'\n", err)
 				continue
 			}
 
@@ -92,7 +103,7 @@ func main() {
 				Lconn:      conn,
 				Raddr:      raddr,
 				PathMapper: pathMapper,
-				Config:     config,
+				Config:     c,
 			}
 			go proxy.Start()
 		}
