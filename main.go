@@ -58,35 +58,21 @@ func main() {
 	}
 
 	app.Action = func(cli *cli.Context) {
-		context := cli.String("context")
-		framework := cli.String("framework")
-		debug := cli.Bool("debug")
-		veryverbose := cli.Bool("vv")
-		verbose := cli.Bool("verbose") || veryverbose
-
 		c := &config.Config{
-			Context:     context,
-			Framework:   framework,
-			Verbose:     verbose,
-			VeryVerbose: veryverbose,
-			Debug:       debug,
+			Context:     cli.String("context"),
+			Framework:   cli.String("framework"),
+			Verbose:     cli.Bool("verbose") || cli.Bool("vv"),
+			VeryVerbose: cli.Bool("vv"),
+			Debug:       cli.Bool("debug"),
 		}
 
 		log := &logger.Logger{
 			Config: c,
 		}
 
-		localAddr := cli.String("xdebug")
-		remoteAddr := cli.String("ide")
+		laddr, raddr, listener := setupNetworkConnection(cli.String("xdebug"), cli.String("ide"), log)
 
-		laddr, err := net.ResolveTCPAddr("tcp", localAddr)
-		errorhandler.PanicHandling(err, log)
-		raddr, err := net.ResolveTCPAddr("tcp", remoteAddr)
-		errorhandler.PanicHandling(err, log)
-		listener, err := net.ListenTCP("tcp", laddr)
-		errorhandler.PanicHandling(err, log)
-
-		log.Info("Debugger from %v\nIDE      from %v\n", localAddr, remoteAddr)
+		log.Info("Debugger from %v\nIDE      from %v\n", laddr, raddr)
 
 		pathMapping := &pathmapping.PathMapping{}
 		pathMapper, err := pathmapperfactory.Create(c, pathMapping, log)
@@ -110,4 +96,17 @@ func main() {
 	}
 
 	app.Run(os.Args)
+}
+
+func setupNetworkConnection(xdebugAddr string, ideAddr string, log *logger.Logger) (*net.TCPAddr, *net.TCPAddr, *net.TCPListener) {
+	laddr, err := net.ResolveTCPAddr("tcp", xdebugAddr)
+	errorhandler.PanicHandling(err, log)
+
+	raddr, err := net.ResolveTCPAddr("tcp", ideAddr)
+	errorhandler.PanicHandling(err, log)
+
+	listener, err := net.ListenTCP("tcp", laddr)
+	errorhandler.PanicHandling(err, log)
+
+	return laddr, raddr, listener
 }
