@@ -5,6 +5,7 @@ import (
 	"github.com/dfeyer/flow-debugproxy/errorhandler"
 	"github.com/dfeyer/flow-debugproxy/logger"
 	"github.com/dfeyer/flow-debugproxy/pathmapperfactory"
+	"github.com/dfeyer/flow-debugproxy/pathmapping"
 	"github.com/dfeyer/flow-debugproxy/xdebugproxy"
 
 	"github.com/codegangsta/cli"
@@ -76,7 +77,8 @@ func main() {
 			VeryVerbose: veryverbose,
 		}
 
-		pathMapper, err := pathmapperfactory.Create(config)
+		pathMapping := pathmapping.PathMapping{}
+		pathMapper, err := pathmapperfactory.Create(config, &pathMapping)
 		errorhandler.PanicHandling(err)
 
 		for {
