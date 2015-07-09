@@ -127,6 +127,10 @@ func (p *PathMapper) mapPath(originalPath string) string {
 func (p *PathMapper) registerPathMapping(path string, originalPath string) string {
 	dat, err := ioutil.ReadFile(path)
 	errorhandler.PanicHandling(err, p.Logger)
+	return p.setPathMapping(path, originalPath, dat)
+}
+
+func (p *PathMapper) setPathMapping(path string, originalPath string, dat []byte) string {
 	// check if file contains flow annotation
 	if strings.Contains(string(dat), "@Flow\\") {
 		if p.Config.Verbose {
@@ -153,7 +157,7 @@ func (p *PathMapper) readOriginalPathFromCache(path string) string {
 			p.Logger.Info("Umpa Lumpa need to work harder, need to reverse this one\n>>> %s\n>>> %s\n", p.Logger.Colorize(fmt.Sprintf(h, path), "yellow"), p.Logger.Colorize(fmt.Sprintf(h, originalPath), "green"))
 		}
 		p.Logger.Debug("readOriginalPathFromCache %s >>> %s", path, originalPath)
-		p.registerPathMapping(path, originalPath)
+		p.setPathMapping(path, originalPath, dat)
 		return originalPath
 	}
 	return path
