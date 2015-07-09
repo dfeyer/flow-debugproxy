@@ -17,6 +17,13 @@ type XDebugProcessorPlugin interface {
 	ApplyMappingToXML(message []byte) []byte
 }
 
+// XDebugProcessorFrameworkAwarePlugin process message in xDebug protocol
+type XDebugProcessorFrameworkAwarePlugin interface {
+	ApplyMappingToTextProtocol(message []byte) []byte
+	ApplyMappingToXML(message []byte) []byte
+	CanProcess(c *config.Config) bool
+}
+
 // Proxy represents a pair of connections and their state
 type Proxy struct {
 	sentBytes      uint64
@@ -26,7 +33,7 @@ type Proxy struct {
 	PathMapper     XDebugProcessorPlugin
 	Config         *config.Config
 	Logger         *logger.Logger
-	postProcessors []XDebugProcessorPlugin
+	postProcessors []XDebugProcessorFrameworkAwarePlugin
 	pipeErrors     chan error
 }
 
@@ -66,8 +73,10 @@ func (p *Proxy) Start() {
 }
 
 // RegisterPostProcessor add a new message post processor
-func (p *Proxy) RegisterPostProcessor(processor XDebugProcessorPlugin) {
-	p.postProcessors = append(p.postProcessors, processor)
+func (p *Proxy) RegisterPostProcessor(processor XDebugProcessorFrameworkAwarePlugin) {
+	if processor.CanProcess(p.Config) {
+		p.postProcessors = append(p.postProcessors, processor)
+	}
 }
 
 func (p *Proxy) log(s string, args ...interface{}) {
@@ -79,7 +88,7 @@ func (p *Proxy) log(s string, args ...interface{}) {
 func (p *Proxy) pipe(src, dst *net.TCPConn) {
 	// data direction
 	var f, h string
-	var processor XDebugProcessorPlugin
+	var processor XDebugProcessorFrameworkAwarePlugin
 	isFromDebugger := src == p.Lconn
 	if isFromDebugger {
 		f = "\nDebugger >>> IDE\n================"

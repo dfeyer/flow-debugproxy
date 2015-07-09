@@ -3,6 +3,7 @@ package main
 import (
 	"github.com/dfeyer/flow-debugproxy/config"
 	"github.com/dfeyer/flow-debugproxy/errorhandler"
+	"github.com/dfeyer/flow-debugproxy/flowstacktraceprocessor"
 	"github.com/dfeyer/flow-debugproxy/logger"
 	"github.com/dfeyer/flow-debugproxy/pathmapperfactory"
 	"github.com/dfeyer/flow-debugproxy/pathmapping"
@@ -78,6 +79,13 @@ func main() {
 		pathMapper, err := pathmapperfactory.Create(c, pathMapping, log)
 		errorhandler.PanicHandling(err, log)
 
+		// Replace this by a plugin registry, with automatic registration
+		stacktraceProcessor := &flowstacktraceprocessor.Processor{
+			Config:      c,
+			Logger:      log,
+			PathMapping: pathMapping,
+		}
+
 		for {
 			conn, err := listener.AcceptTCP()
 			if err != nil {
@@ -91,6 +99,7 @@ func main() {
 				PathMapper: pathMapper,
 				Config:     c,
 			}
+			proxy.RegisterPostProcessor(stacktraceProcessor)
 			go proxy.Start()
 		}
 	}
