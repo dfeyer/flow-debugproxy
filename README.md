@@ -34,6 +34,14 @@ The proxy require a small change in Flow Framwork, so please patch your version
 before submitting an issue: https://review.typo3.org/#/c/40794. This change is
 compatible with Flow master, 3.0, 2.3 (not tested on older version).
 
+How to debug the proxy class directly
+-------------------------------------
+
+You can disable to path mapping, in this case the proxy do not process xDebug
+protocol:
+
+    ./flow-debugproxy --framework dummy
+
 Show help
 ---------
 
