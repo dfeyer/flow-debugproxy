@@ -20,7 +20,7 @@ func main() {
 	app.Usage = "Flow Framework xDebug proxy"
 	app.Author = "Dominique Feyer"
 	app.Email = "dominique@neos.io"
-	app.Version = "0.1.0"
+	app.Version = "0.9.0"
 
 	app.Flags = []cli.Flag{
 		cli.StringFlag{
