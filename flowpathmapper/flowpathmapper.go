@@ -4,6 +4,7 @@ import (
 	"github.com/dfeyer/flow-debugproxy/config"
 	"github.com/dfeyer/flow-debugproxy/errorhandler"
 	"github.com/dfeyer/flow-debugproxy/logger"
+	"github.com/dfeyer/flow-debugproxy/pathmapperfactory"
 	"github.com/dfeyer/flow-debugproxy/pathmapping"
 
 	"bytes"
@@ -17,6 +18,7 @@ import (
 
 const (
 	h                = "%s"
+	framework        = "flow"
 	cachePathPattern = "@base@/Data/Temporary/@context@/Cache/Code/Flow_Object_Classes/@filename@.php"
 )
 
@@ -28,11 +30,23 @@ var (
 	regexpDot             = regexp.MustCompile(`[\./]`)
 )
 
+func init() {
+	p := &PathMapper{}
+	pathmapperfactory.Register(framework, p)
+}
+
 // PathMapper handle the mapping between real code and proxy
 type PathMapper struct {
-	Config      *config.Config
-	Logger      *logger.Logger
-	PathMapping *pathmapping.PathMapping
+	config      *config.Config
+	logger      *logger.Logger
+	pathMapping *pathmapping.PathMapping
+}
+
+// Initialize the path mapper dependencies
+func (p *PathMapper) Initialize(c *config.Config, l *logger.Logger, m *pathmapping.PathMapping) {
+	p.config = c
+	p.logger = l
+	p.pathMapping = m
 }
 
 // ApplyMappingToTextProtocol change file path in xDebug text protocol
@@ -47,7 +61,7 @@ func (p *PathMapper) ApplyMappingToXML(message []byte) []byte {
 	// update xml length count
 	s := strings.Split(string(message), "\x00")
 	i, err := strconv.Atoi(s[0])
-	errorhandler.PanicHandling(err, p.Logger)
+	errorhandler.PanicHandling(err, p.logger)
 	l := len(s[1])
 	if i != l {
 		message = bytes.Replace(message, []byte(strconv.Itoa(i)), []byte(strconv.Itoa(l)), 1)
@@ -61,7 +75,7 @@ func (p *PathMapper) doTextPathMapping(message []byte) []byte {
 	for _, match := range regexpPhpFile.FindAllStringSubmatch(string(message), -1) {
 		originalPath := match[1]
 		path := p.mapPath(originalPath)
-		p.Logger.Debug("doTextPathMapping %s >>> %s", path, originalPath)
+		p.logger.Debug("doTextPathMapping %s >>> %s", path, originalPath)
 		processedMapping[path] = originalPath
 	}
 
@@ -74,7 +88,7 @@ func (p *PathMapper) doTextPathMapping(message []byte) []byte {
 
 func (p *PathMapper) getCachePath(base, filename string) string {
 	cachePath := strings.Replace(cachePathPattern, "@base@", base, 1)
-	cachePath = strings.Replace(cachePath, "@context@", p.Config.Context, 1)
+	cachePath = strings.Replace(cachePath, "@context@", p.config.Context, 1)
 	return strings.Replace(cachePath, "@filename@", filename, 1)
 }
 
@@ -83,16 +97,16 @@ func (p *PathMapper) doXMLPathMapping(b []byte) []byte {
 	for _, match := range regexpFilename.FindAllStringSubmatch(string(b), -1) {
 		path := p.getCachePath(match[1], match[2])
 		if _, ok := processedMapping[path]; ok == false {
-			if originalPath, exist := p.PathMapping.Get(path); exist {
-				if p.Config.VeryVerbose {
-					p.Logger.Info("Umpa Lumpa can help you, he know the mapping\n%s\n%s\n", p.Logger.Colorize(">>> "+fmt.Sprintf(h, path), "yellow"), p.Logger.Colorize(">>> "+fmt.Sprintf(h, p.getRealFilename(originalPath)), "green"))
+			if originalPath, exist := p.pathMapping.Get(path); exist {
+				if p.config.VeryVerbose {
+					p.logger.Info("Umpa Lumpa can help you, he know the mapping\n%s\n%s\n", p.logger.Colorize(">>> "+fmt.Sprintf(h, path), "yellow"), p.logger.Colorize(">>> "+fmt.Sprintf(h, p.getRealFilename(originalPath)), "green"))
 				}
 				processedMapping[path] = originalPath
-				p.Logger.Debug("doXMLPathMapping mapping exist %s >>> %s", path, originalPath)
+				p.logger.Debug("doXMLPathMapping mapping exist %s >>> %s", path, originalPath)
 			} else {
 				originalPath = p.readOriginalPathFromCache(path)
 				processedMapping[path] = originalPath
-				p.Logger.Debug("doXMLPathMapping missing mapping %s >>> %s", path, originalPath)
+				p.logger.Debug("doXMLPathMapping missing mapping %s >>> %s", path, originalPath)
 			}
 		}
 	}
@@ -113,7 +127,7 @@ func (p *PathMapper) getRealFilename(path string) string {
 
 func (p *PathMapper) mapPath(originalPath string) string {
 	if strings.Contains(originalPath, "/Packages/") {
-		p.Logger.Debug("Path %s is a Flow Package file", originalPath)
+		p.logger.Debug("Path %s is a Flow Package file", originalPath)
 		cachePath := p.getCachePath(p.buildClassNameFromPath(originalPath))
 		realPath := p.getRealFilename(cachePath)
 		if _, err := os.Stat(realPath); err == nil {
@@ -125,28 +139,28 @@ func (p *PathMapper) mapPath(originalPath string) string {
 }
 
 func (p *PathMapper) setPathMapping(path string, originalPath string) string {
-	if p.Config.Verbose {
-		p.Logger.Info("%s", "Our Umpa Lumpa take care of your mapping and they did a great job, they found a proxy for you:")
-		p.Logger.Info(">>> %s\n", path)
+	if p.config.Verbose {
+		p.logger.Info("%s", "Our Umpa Lumpa take care of your mapping and they did a great job, they found a proxy for you:")
+		p.logger.Info(">>> %s\n", path)
 	}
 
-	if p.PathMapping.Has(path) == false {
-		p.PathMapping.Set(path, originalPath)
+	if p.pathMapping.Has(path) == false {
+		p.pathMapping.Set(path, originalPath)
 	}
 	return path
 }
 
 func (p *PathMapper) readOriginalPathFromCache(path string) string {
 	dat, err := ioutil.ReadFile(path)
-	errorhandler.PanicHandling(err, p.Logger)
+	errorhandler.PanicHandling(err, p.logger)
 	match := regexpPathAndFilename.FindStringSubmatch(string(dat))
-	p.Logger.Debug("readOriginalPathFromCache %s", path)
+	p.logger.Debug("readOriginalPathFromCache %s", path)
 	if len(match) == 2 {
 		originalPath := match[1]
-		if p.Config.VeryVerbose {
-			p.Logger.Info("Umpa Lumpa need to work harder, need to reverse this one\n>>> %s\n>>> %s\n", p.Logger.Colorize(fmt.Sprintf(h, path), "yellow"), p.Logger.Colorize(fmt.Sprintf(h, originalPath), "green"))
+		if p.config.VeryVerbose {
+			p.logger.Info("Umpa Lumpa need to work harder, need to reverse this one\n>>> %s\n>>> %s\n", p.logger.Colorize(fmt.Sprintf(h, path), "yellow"), p.logger.Colorize(fmt.Sprintf(h, originalPath), "green"))
 		}
-		p.Logger.Debug("readOriginalPathFromCache %s >>> %s", path, originalPath)
+		p.logger.Debug("readOriginalPathFromCache %s >>> %s", path, originalPath)
 		p.setPathMapping(path, originalPath)
 		return originalPath
 	}

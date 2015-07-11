@@ -3,6 +3,7 @@ package xdebugproxy
 import (
 	"github.com/dfeyer/flow-debugproxy/config"
 	"github.com/dfeyer/flow-debugproxy/logger"
+	"github.com/dfeyer/flow-debugproxy/pathmapping"
 
 	"fmt"
 	"io"
@@ -13,6 +14,7 @@ const h = "%s"
 
 // XDebugProcessorPlugin process message in xDebug protocol
 type XDebugProcessorPlugin interface {
+	Initialize(c *config.Config, l *logger.Logger, m *pathmapping.PathMapping)
 	ApplyMappingToTextProtocol(message []byte) []byte
 	ApplyMappingToXML(message []byte) []byte
 }
