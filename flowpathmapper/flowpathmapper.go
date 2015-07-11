@@ -117,33 +117,23 @@ func (p *PathMapper) mapPath(originalPath string) string {
 		cachePath := p.getCachePath(p.buildClassNameFromPath(originalPath))
 		realPath := p.getRealFilename(cachePath)
 		if _, err := os.Stat(realPath); err == nil {
-			return p.registerPathMapping(realPath, originalPath)
+			return p.setPathMapping(realPath, originalPath)
 		}
 	}
 
 	return originalPath
 }
 
-func (p *PathMapper) registerPathMapping(path string, originalPath string) string {
-	dat, err := ioutil.ReadFile(path)
-	errorhandler.PanicHandling(err, p.Logger)
-	return p.setPathMapping(path, originalPath, dat)
-}
-
-func (p *PathMapper) setPathMapping(path string, originalPath string, dat []byte) string {
-	// check if file contains flow annotation
-	if strings.Contains(string(dat), "@Flow\\") {
-		if p.Config.Verbose {
-			p.Logger.Info("%s", "Our Umpa Lumpa take care of your mapping and they did a great job, they found a proxy for you:")
-			p.Logger.Info(">>> %s\n", path)
-		}
-
-		if p.PathMapping.Has(path) == false {
-			p.PathMapping.Set(path, originalPath)
-		}
-		return path
+func (p *PathMapper) setPathMapping(path string, originalPath string) string {
+	if p.Config.Verbose {
+		p.Logger.Info("%s", "Our Umpa Lumpa take care of your mapping and they did a great job, they found a proxy for you:")
+		p.Logger.Info(">>> %s\n", path)
 	}
-	return originalPath
+
+	if p.PathMapping.Has(path) == false {
+		p.PathMapping.Set(path, originalPath)
+	}
+	return path
 }
 
 func (p *PathMapper) readOriginalPathFromCache(path string) string {
@@ -157,7 +147,7 @@ func (p *PathMapper) readOriginalPathFromCache(path string) string {
 			p.Logger.Info("Umpa Lumpa need to work harder, need to reverse this one\n>>> %s\n>>> %s\n", p.Logger.Colorize(fmt.Sprintf(h, path), "yellow"), p.Logger.Colorize(fmt.Sprintf(h, originalPath), "green"))
 		}
 		p.Logger.Debug("readOriginalPathFromCache %s >>> %s", path, originalPath)
-		p.setPathMapping(path, originalPath, dat)
+		p.setPathMapping(path, originalPath)
 		return originalPath
 	}
 	return path
