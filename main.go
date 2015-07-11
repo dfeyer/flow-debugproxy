@@ -41,7 +41,7 @@ func main() {
 		cli.StringFlag{
 			Name:  "framework",
 			Value: "flow",
-			Usage: "Framework support, currently on Flow framework is supported",
+			Usage: "Framework support, currently on Flow framework (flow) or Dummy (dummy) is supported",
 		},
 		cli.BoolFlag{
 			Name:  "verbose",
