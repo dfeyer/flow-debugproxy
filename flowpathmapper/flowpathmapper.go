@@ -30,7 +30,7 @@ var (
 	regexpPhpFile         = regexp.MustCompile(`(?://)?(/[^ ]*\.php)`)
 	regexpFilename        = regexp.MustCompile(`filename=["]?file://(\S+)/Data/Temporary/[^/]*/Cache/Code/Flow_Object_Classes/([^"]*)\.php`)
 	regexpPathAndFilename = regexp.MustCompile(`(?m)^# PathAndFilename: (.*)$`)
-	regexpPackageClass    = regexp.MustCompile(`(.*?)/Packages/(.*?)/Classes/(.*).php`)
+	regexpPackageClass    = regexp.MustCompile(`(.*?)/Packages/[^/]*/(.*?)/Classes/(.*).php`)
 	regexpDot             = regexp.MustCompile(`[\./]`)
 )
 
@@ -172,21 +172,36 @@ func (p *PathMapper) readOriginalPathFromCache(path string) string {
 }
 
 func (p *PathMapper) buildClassNameFromPath(path string) (string, string) {
+	basePath, className := pathToClassPath(path)
+	if className == "" {
+		// Other (vendor) packages, todo add support for vendor package with Flow proxy class
+		p.logger.Warn(h, "Vendor package detected")
+		p.logger.Warn("Class mapping not supported currently for path: %s, \n", path)
+	}
+	return basePath, className
+}
+
+// Convert absolute path to class path (internal use only)
+func pathToClassPath(path string) (string, string) {
 	var (
 		basePath  string
-		className string
+		classPath string
 	)
 	match := regexpPackageClass.FindStringSubmatch(path)
 	if len(match) == 4 {
 		// Flow standard packages
+		packagePath := regexpDot.ReplaceAllString(match[2], "/")
+		classPath = match[3]
+		if strings.Contains(classPath, packagePath) == false {
+			// Quick'n dirty PSR4 support
+			classPath = packagePath + "/" + classPath
+		}
 		basePath = match[1]
-		className = regexpDot.ReplaceAllString(match[3], "_")
+		classPath = regexpDot.ReplaceAllString(classPath, "_")
 	} else {
 		// Other (vendor) packages, todo add support for vendor package with Flow proxy class
-		p.logger.Warn(h, "Vendor package detected")
-		p.logger.Warn("Class mapping not supported currently for path: %s, \n", path)
 		basePath = path
-		className = ""
+		classPath = ""
 	}
-	return basePath, className
+	return basePath, classPath
 }
