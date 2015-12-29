@@ -6,7 +6,6 @@ package pathmapperfactory
 
 import (
 	"github.com/dfeyer/flow-debugproxy/config"
-	"github.com/dfeyer/flow-debugproxy/logger"
 	"github.com/dfeyer/flow-debugproxy/pathmapping"
 	"github.com/dfeyer/flow-debugproxy/xdebugproxy"
 
@@ -21,10 +20,10 @@ func Register(f string, p xdebugproxy.XDebugProcessorPlugin) {
 }
 
 // Create return a pathmapper for the given framework
-func Create(c *config.Config, p *pathmapping.PathMapping, l *logger.Logger) (xdebugproxy.XDebugProcessorPlugin, error) {
+func Create(c *config.Config, p *pathmapping.PathMapping) (xdebugproxy.XDebugProcessorPlugin, error) {
 	if _, exist := pathMapperRegistry[c.Framework]; exist {
 		pathmapper := pathMapperRegistry[c.Framework]
-		pathmapper.Initialize(c, l, p)
+		pathmapper.Initialize(c, p)
 		return pathmapper, nil
 	}
 

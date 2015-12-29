@@ -7,7 +7,6 @@ package logger
 import (
 	"github.com/dfeyer/flow-debugproxy/config"
 
-	"bytes"
 	"fmt"
 	"github.com/mgutz/ansi"
 )
@@ -38,14 +37,4 @@ func (l *Logger) Info(f string, args ...interface{}) {
 //Warn output a red text line
 func (l *Logger) Warn(f string, args ...interface{}) {
 	fmt.Printf(redize(f)+"\n", args...)
-}
-
-//Colorize use the Ansi module to colorize output
-func (l *Logger) Colorize(str, style string) string {
-	return ansi.Color(str, style)
-}
-
-//FormatTextProtocol replace NULL by a line break for output formatting
-func (l *Logger) FormatTextProtocol(protocol []byte) []byte {
-	return bytes.Trim(bytes.Replace(protocol, []byte("\x00"), []byte("\n"), -1), "\n")
 }

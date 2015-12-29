@@ -7,12 +7,12 @@ package flowpathmapper
 import (
 	"github.com/dfeyer/flow-debugproxy/config"
 	"github.com/dfeyer/flow-debugproxy/errorhandler"
-	"github.com/dfeyer/flow-debugproxy/logger"
 	"github.com/dfeyer/flow-debugproxy/pathmapperfactory"
 	"github.com/dfeyer/flow-debugproxy/pathmapping"
 
+	log "github.com/Sirupsen/logrus"
+
 	"bytes"
-	"fmt"
 	"io/ioutil"
 	"os"
 	"regexp"
@@ -42,14 +42,12 @@ func init() {
 // PathMapper handle the mapping between real code and proxy
 type PathMapper struct {
 	config      *config.Config
-	logger      *logger.Logger
 	pathMapping *pathmapping.PathMapping
 }
 
 // Initialize the path mapper dependencies
-func (p *PathMapper) Initialize(c *config.Config, l *logger.Logger, m *pathmapping.PathMapping) {
+func (p *PathMapper) Initialize(c *config.Config, m *pathmapping.PathMapping) {
 	p.config = c
-	p.logger = l
 	p.pathMapping = m
 }
 
@@ -65,7 +63,7 @@ func (p *PathMapper) ApplyMappingToXML(message []byte) []byte {
 	// update xml length count
 	s := strings.Split(string(message), "\x00")
 	i, err := strconv.Atoi(s[0])
-	errorhandler.PanicHandling(err, p.logger)
+	errorhandler.PanicHandler(err)
 	l := len(s[1])
 	if i != l {
 		message = bytes.Replace(message, []byte(strconv.Itoa(i)), []byte(strconv.Itoa(l)), 1)
@@ -79,7 +77,10 @@ func (p *PathMapper) doTextPathMapping(message []byte) []byte {
 	for _, match := range regexpPhpFile.FindAllStringSubmatch(string(message), -1) {
 		originalPath := match[1]
 		path := p.mapPath(originalPath)
-		p.logger.Debug("doTextPathMapping %s >>> %s", path, originalPath)
+		log.WithFields(log.Fields{
+			"path":          path,
+			"original_path": originalPath,
+		}).Warn("Process Text Protocol")
 		processedMapping[path] = originalPath
 	}
 
@@ -102,15 +103,18 @@ func (p *PathMapper) doXMLPathMapping(b []byte) []byte {
 		path := p.getCachePath(match[1], match[2])
 		if _, ok := processedMapping[path]; ok == false {
 			if originalPath, exist := p.pathMapping.Get(path); exist {
-				if p.config.VeryVerbose {
-					p.logger.Info("Umpa Lumpa can help you, he know the mapping\n%s\n%s\n", p.logger.Colorize(">>> "+fmt.Sprintf(h, path), "yellow"), p.logger.Colorize(">>> "+fmt.Sprintf(h, p.getRealFilename(originalPath)), "green"))
-				}
 				processedMapping[path] = originalPath
-				p.logger.Debug("doXMLPathMapping mapping exist %s >>> %s", path, originalPath)
+				log.WithFields(log.Fields{
+					"path":          path,
+					"original_path": originalPath,
+				}).Debug("Process XML Protocol")
 			} else {
 				originalPath = p.readOriginalPathFromCache(path)
 				processedMapping[path] = originalPath
-				p.logger.Debug("doXMLPathMapping missing mapping %s >>> %s", path, originalPath)
+				log.WithFields(log.Fields{
+					"path":          path,
+					"original_path": originalPath,
+				}).Debug("Process XML Protocol, missing mapping")
 			}
 		}
 	}
@@ -131,7 +135,9 @@ func (p *PathMapper) getRealFilename(path string) string {
 
 func (p *PathMapper) mapPath(originalPath string) string {
 	if strings.Contains(originalPath, "/Packages/") {
-		p.logger.Debug("Path %s is a Flow Package file", originalPath)
+		log.WithFields(log.Fields{
+			"original_path": originalPath,
+		}).Debug("Flow package detected")
 		cachePath := p.getCachePath(p.buildClassNameFromPath(originalPath))
 		realPath := p.getRealFilename(cachePath)
 		if _, err := os.Stat(realPath); err == nil {
@@ -144,8 +150,9 @@ func (p *PathMapper) mapPath(originalPath string) string {
 
 func (p *PathMapper) setPathMapping(path string, originalPath string) string {
 	if p.config.Verbose {
-		p.logger.Info(h, "Our Umpa Lumpa take care of your mapping and they did a great job, they found a proxy for you:")
-		p.logger.Info(">>> %s\n", path)
+		log.WithFields(log.Fields{
+			"path": path,
+		}).Info("Our Umpa Lumpa take care of your mapping and they did a great job, they found a proxy for you")
 	}
 
 	if p.pathMapping.Has(path) == false {
@@ -156,15 +163,16 @@ func (p *PathMapper) setPathMapping(path string, originalPath string) string {
 
 func (p *PathMapper) readOriginalPathFromCache(path string) string {
 	dat, err := ioutil.ReadFile(path)
-	errorhandler.PanicHandling(err, p.logger)
+	errorhandler.PanicHandler(err)
 	match := regexpPathAndFilename.FindStringSubmatch(string(dat))
-	p.logger.Debug("readOriginalPathFromCache %s", path)
 	if len(match) == 2 {
 		originalPath := match[1]
 		if p.config.VeryVerbose {
-			p.logger.Info("Umpa Lumpa need to work harder, need to reverse this one\n>>> %s\n>>> %s\n", p.logger.Colorize(fmt.Sprintf(h, path), "yellow"), p.logger.Colorize(fmt.Sprintf(h, originalPath), "green"))
+			log.WithFields(log.Fields{
+				"path":          path,
+				"original_path": originalPath,
+			}).Info("Umpa Lumpa need to work harder, reverse mapping found")
 		}
-		p.logger.Debug("readOriginalPathFromCache %s >>> %s", path, originalPath)
 		p.setPathMapping(path, originalPath)
 		return originalPath
 	}
@@ -175,8 +183,9 @@ func (p *PathMapper) buildClassNameFromPath(path string) (string, string) {
 	basePath, className := pathToClassPath(path)
 	if className == "" {
 		// Other (vendor) packages, todo add support for vendor package with Flow proxy class
-		p.logger.Warn(h, "Vendor package detected")
-		p.logger.Warn("Class mapping not supported currently for path: %s, \n", path)
+		log.WithFields(log.Fields{
+			"path": path,
+		}).Warn("Vendor package detected, class mapping disabled")
 	}
 	return basePath, className
 }

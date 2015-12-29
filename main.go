@@ -17,6 +17,7 @@ import (
 	_ "github.com/dfeyer/flow-debugproxy/dummypathmapper"
 	_ "github.com/dfeyer/flow-debugproxy/flowpathmapper"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/codegangsta/cli"
 
 	"net"
@@ -75,22 +76,25 @@ func main() {
 			Debug:       cli.Bool("debug"),
 		}
 
-		log := &logger.Logger{
+		logger := &logger.Logger{
 			Config: c,
 		}
 
-		laddr, raddr, listener := setupNetworkConnection(cli.String("xdebug"), cli.String("ide"), log)
+		laddr, raddr, listener := setupNetworkConnection(cli.String("xdebug"), cli.String("ide"), logger)
 
-		log.Info("Debugger from %v\nIDE      from %v\n", laddr, raddr)
+		log.WithFields(log.Fields{
+			"debugger": laddr,
+			"ide":      raddr,
+		}).Info("Flow Debug Proxy started")
 
 		pathMapping := &pathmapping.PathMapping{}
-		pathMapper, err := pathmapperfactory.Create(c, pathMapping, log)
-		errorhandler.PanicHandling(err, log)
+		pathMapper, err := pathmapperfactory.Create(c, pathMapping)
+		errorhandler.PanicHandling(err, logger)
 
 		for {
 			conn, err := listener.AcceptTCP()
 			if err != nil {
-				log.Warn("Failed to accept connection '%s'\n", err)
+				logger.Warn("Failed to accept connection '%s'\n", err)
 				continue
 			}
 
@@ -107,15 +111,15 @@ func main() {
 	app.Run(os.Args)
 }
 
-func setupNetworkConnection(xdebugAddr string, ideAddr string, log *logger.Logger) (*net.TCPAddr, *net.TCPAddr, *net.TCPListener) {
+func setupNetworkConnection(xdebugAddr string, ideAddr string, logger *logger.Logger) (*net.TCPAddr, *net.TCPAddr, *net.TCPListener) {
 	laddr, err := net.ResolveTCPAddr("tcp", xdebugAddr)
-	errorhandler.PanicHandling(err, log)
+	errorhandler.PanicHandling(err, logger)
 
 	raddr, err := net.ResolveTCPAddr("tcp", ideAddr)
-	errorhandler.PanicHandling(err, log)
+	errorhandler.PanicHandling(err, logger)
 
 	listener, err := net.ListenTCP("tcp", laddr)
-	errorhandler.PanicHandling(err, log)
+	errorhandler.PanicHandling(err, logger)
 
 	return laddr, raddr, listener
 }

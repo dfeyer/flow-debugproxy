@@ -6,10 +6,11 @@ package xdebugproxy
 
 import (
 	"github.com/dfeyer/flow-debugproxy/config"
-	"github.com/dfeyer/flow-debugproxy/logger"
 	"github.com/dfeyer/flow-debugproxy/pathmapping"
 
-	"fmt"
+	log "github.com/Sirupsen/logrus"
+
+	"bytes"
 	"io"
 	"net"
 )
@@ -18,7 +19,7 @@ const h = "%s"
 
 // XDebugProcessorPlugin process message in xDebug protocol
 type XDebugProcessorPlugin interface {
-	Initialize(c *config.Config, l *logger.Logger, m *pathmapping.PathMapping)
+	Initialize(c *config.Config, m *pathmapping.PathMapping)
 	ApplyMappingToTextProtocol(message []byte) []byte
 	ApplyMappingToXML(message []byte) []byte
 }
@@ -31,7 +32,6 @@ type Proxy struct {
 	Lconn, rconn   *net.TCPConn
 	PathMapper     XDebugProcessorPlugin
 	Config         *config.Config
-	Logger         *logger.Logger
 	postProcessors []XDebugProcessorPlugin
 	pipeErrors     chan error
 }
@@ -64,7 +64,7 @@ func (p *Proxy) Start() {
 	go p.pipe(p.rconn, p.Lconn)
 
 	if err = <-p.pipeErrors; err != io.EOF {
-		p.Logger.Warn(h, err)
+		log.Warn(h, err)
 	}
 	<-p.pipeErrors
 
@@ -78,7 +78,7 @@ func (p *Proxy) RegisterPostProcessor(processor XDebugProcessorPlugin) {
 
 func (p *Proxy) log(s string, args ...interface{}) {
 	if p.Config.Verbose {
-		p.Logger.Info(s, args...)
+		log.Infof(s, args...)
 	}
 }
 
@@ -88,9 +88,9 @@ func (p *Proxy) pipe(src, dst *net.TCPConn) {
 	var processor XDebugProcessorPlugin
 	isFromDebugger := src == p.Lconn
 	if isFromDebugger {
-		f = "\nDebugger >>> IDE\n================"
+		f = "Debugger >>> IDE"
 	} else {
-		f = "\nIDE >>> Debugger\n================"
+		f = "IDE >>> Debugger"
 	}
 	h = "%s"
 	// directional copy (64k buffer)
@@ -107,9 +107,9 @@ func (p *Proxy) pipe(src, dst *net.TCPConn) {
 		p.log(h, f)
 		if p.Config.VeryVerbose {
 			if isFromDebugger {
-				p.log("Raw protocol:\n%s\n", p.Logger.Colorize(fmt.Sprintf(h, b), "blue"))
+				p.log("Raw protocol: %s", b)
 			} else {
-				p.log("Raw protocol:\n%s\n", p.Logger.Colorize(fmt.Sprintf(h, p.Logger.FormatTextProtocol(b)), "blue"))
+				p.log("Raw protocol: %s", formatTextProtocol(b))
 			}
 		}
 		// extract command name
@@ -132,9 +132,9 @@ func (p *Proxy) pipe(src, dst *net.TCPConn) {
 		// show output
 		if p.Config.VeryVerbose {
 			if isFromDebugger {
-				p.log("Processed protocol:\n%s\n", p.Logger.Colorize(fmt.Sprintf(h, b), "blue"))
+				p.log("Processed protocol: %s", b)
 			} else {
-				p.log("Processed protocol:\n%s\n", p.Logger.Colorize(fmt.Sprintf(h, p.Logger.FormatTextProtocol(b)), "blue"))
+				p.log("Processed protocol: %s", formatTextProtocol(b))
 			}
 		} else {
 			p.log(h, "")
@@ -154,4 +154,8 @@ func (p *Proxy) pipe(src, dst *net.TCPConn) {
 			p.receivedBytes += uint64(n)
 		}
 	}
+}
+
+func formatTextProtocol(protocol []byte) []byte {
+	return bytes.Trim(bytes.Replace(protocol, []byte("\x00"), []byte("\n"), -1), "\n")
 }

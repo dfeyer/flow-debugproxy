@@ -6,6 +6,8 @@ package errorhandler
 
 import (
 	"github.com/dfeyer/flow-debugproxy/logger"
+
+	log "github.com/Sirupsen/logrus"
 	"os"
 )
 
@@ -13,6 +15,14 @@ import (
 func PanicHandling(err error, logger *logger.Logger) {
 	if err != nil {
 		logger.Warn(err.Error())
+		os.Exit(1)
+	}
+}
+
+// PanicHandler handle error and output log message
+func PanicHandler(err error) {
+	if err != nil {
+		log.Fatal(err.Error())
 		os.Exit(1)
 	}
 }
