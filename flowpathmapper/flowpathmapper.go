@@ -144,7 +144,7 @@ func (p *PathMapper) mapPath(originalPath string) string {
 
 func (p *PathMapper) setPathMapping(path string, originalPath string) string {
 	if p.config.Verbose {
-		p.logger.Info("%s", "Our Umpa Lumpa take care of your mapping and they did a great job, they found a proxy for you:")
+		p.logger.Info(h, "Our Umpa Lumpa take care of your mapping and they did a great job, they found a proxy for you:")
 		p.logger.Info(">>> %s\n", path)
 	}
 
