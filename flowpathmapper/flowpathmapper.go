@@ -172,9 +172,21 @@ func (p *PathMapper) readOriginalPathFromCache(path string) string {
 }
 
 func (p *PathMapper) buildClassNameFromPath(path string) (string, string) {
-	// todo add support for PSR4
+	var (
+		basePath  string
+		className string
+	)
 	match := regexpPackageClass.FindStringSubmatch(path)
-	basePath := match[1]
-	className := regexpDot.ReplaceAllString(match[3], "_")
+	if len(match) == 4 {
+		// Flow standard packages
+		basePath = match[1]
+		className = regexpDot.ReplaceAllString(match[3], "_")
+	} else {
+		// Other (vendor) packages, todo add support for vendor package with Flow proxy class
+		p.logger.Warn(h, "Vendor package detected")
+		p.logger.Warn("Class mapping not supported currently for path: %s, \n", path)
+		basePath = path
+		className = ""
+	}
 	return basePath, className
 }
