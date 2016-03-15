@@ -21,6 +21,7 @@ import (
 
 	"net"
 	"os"
+	"strings"
 )
 
 func main() {
@@ -48,6 +49,11 @@ func main() {
 			Usage: "The context to run as",
 		},
 		cli.StringFlag{
+			Name:  "localroot, r",
+			Value: "",
+			Usage: "Local project root for remote debugging",
+		},
+		cli.StringFlag{
 			Name:  "framework",
 			Value: "flow",
 			Usage: "Framework support, currently on Flow framework (flow) or Dummy (dummy) is supported",
@@ -70,6 +76,7 @@ func main() {
 		c := &config.Config{
 			Context:     cli.String("context"),
 			Framework:   cli.String("framework"),
+			LocalRoot:   strings.TrimRight(cli.String("localroot"), "/"),
 			Verbose:     cli.Bool("verbose") || cli.Bool("vv"),
 			VeryVerbose: cli.Bool("vv"),
 			Debug:       cli.Bool("debug"),
@@ -81,6 +88,7 @@ func main() {
 
 		laddr, raddr, listener := setupNetworkConnection(cli.String("xdebug"), cli.String("ide"), log)
 
+		log.Info("special version [wy/ft]\n")
 		log.Info("Debugger from %v\nIDE      from %v\n", laddr, raddr)
 
 		pathMapping := &pathmapping.PathMapping{}

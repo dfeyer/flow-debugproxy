@@ -8,6 +8,7 @@ package config
 type Config struct {
 	Context     string
 	Framework   string
+	LocalRoot   string
 	Verbose     bool
 	VeryVerbose bool
 	Debug       bool

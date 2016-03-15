@@ -28,7 +28,7 @@ const (
 
 var (
 	regexpPhpFile         = regexp.MustCompile(`(?://)?(/[^ ]*\.php)`)
-	regexpFilename        = regexp.MustCompile(`filename=["]?file://(\S+)/Data/Temporary/([^/]*(/SubContext[^/]*)?)/Cache/Code/Flow_Object_Classes/([^"]*)\.php`)
+	regexpFilename        = regexp.MustCompile(`filename=["]?file://(\S+)/Data/Temporary/.+?/Cache/Code/Flow_Object_Classes/([^"]*)\.php`)
 	regexpPathAndFilename = regexp.MustCompile(`(?m)^# PathAndFilename: (.*)$`)
 	regexpPackageClass    = regexp.MustCompile(`(.*?)/Packages/[^/]*/(.*?)/Classes/(.*).php`)
 	regexpDot             = regexp.MustCompile(`[\./]`)
@@ -92,15 +92,20 @@ func (p *PathMapper) doTextPathMapping(message []byte) []byte {
 
 func (p *PathMapper) getCachePath(base, filename string) string {
 	cachePath := strings.Replace(cachePathPattern, "@base@", base, 1)
-	contextPath := strings.Replace(p.config.Context, "/", "/SubContext", 1)
-	cachePath = strings.Replace(cachePath, "@context@", contextPath, 1)
+	context := p.config.Context
+	if strings.Contains(context, "/") {
+		contextParts := strings.Split(context, "/")
+		contextParts[1] = "SubContext" + contextParts[1]
+		context = strings.Join(contextParts, "/")
+	}
+	cachePath = strings.Replace(cachePath, "@context@", context, 1)
 	return strings.Replace(cachePath, "@filename@", filename, 1)
 }
 
 func (p *PathMapper) doXMLPathMapping(b []byte) []byte {
 	var processedMapping = map[string]string{}
 	for _, match := range regexpFilename.FindAllStringSubmatch(string(b), -1) {
-		path := p.getCachePath(match[1], match[4])
+		path := p.getCachePath(match[1], match[2])
 		if _, ok := processedMapping[path]; ok == false {
 			if originalPath, exist := p.pathMapping.Get(path); exist {
 				if p.config.VeryVerbose {
@@ -109,7 +114,7 @@ func (p *PathMapper) doXMLPathMapping(b []byte) []byte {
 				processedMapping[path] = originalPath
 				p.logger.Debug("doXMLPathMapping mapping exist %s >>> %s", path, originalPath)
 			} else {
-				originalPath = p.readOriginalPathFromCache(path)
+				originalPath = p.readOriginalPathFromCache(path, match[1])
 				processedMapping[path] = originalPath
 				p.logger.Debug("doXMLPathMapping missing mapping %s >>> %s", path, originalPath)
 			}
@@ -135,7 +140,11 @@ func (p *PathMapper) mapPath(originalPath string) string {
 		p.logger.Debug("Path %s is a Flow Package file", originalPath)
 		cachePath := p.getCachePath(p.buildClassNameFromPath(originalPath))
 		realPath := p.getRealFilename(cachePath)
-		if _, err := os.Stat(realPath); err == nil {
+		var err error
+		if len(p.config.LocalRoot) == 0 {
+			_, err = os.Stat(realPath)
+		}
+		if err == nil {
 			return p.setPathMapping(realPath, originalPath)
 		}
 	}
@@ -155,13 +164,20 @@ func (p *PathMapper) setPathMapping(path string, originalPath string) string {
 	return path
 }
 
-func (p *PathMapper) readOriginalPathFromCache(path string) string {
-	dat, err := ioutil.ReadFile(path)
+func (p *PathMapper) readOriginalPathFromCache(path, basePath string) string {
+	localPath := path
+	if len(p.config.LocalRoot) > 0 {
+		localPath = strings.Replace(path, basePath, p.config.LocalRoot, 1)
+	}
+	dat, err := ioutil.ReadFile(localPath)
 	errorhandler.PanicHandling(err, p.logger)
 	match := regexpPathAndFilename.FindStringSubmatch(string(dat))
-	p.logger.Debug("readOriginalPathFromCache %s", path)
+	p.logger.Debug("readOriginalPathFromCache %s", localPath)
 	if len(match) == 2 {
 		originalPath := match[1]
+		if len(p.config.LocalRoot) > 0 {
+			originalPath = strings.Replace(strings.Replace(originalPath, "\\", "/", -1), p.config.LocalRoot, basePath, 1)
+		}
 		if p.config.VeryVerbose {
 			p.logger.Info("Umpa Lumpa need to work harder, need to reverse this one\n>>> %s\n>>> %s\n", p.logger.Colorize(fmt.Sprintf(h, path), "yellow"), p.logger.Colorize(fmt.Sprintf(h, originalPath), "green"))
 		}
