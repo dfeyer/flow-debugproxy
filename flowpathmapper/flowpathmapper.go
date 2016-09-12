@@ -28,7 +28,7 @@ const (
 
 var (
 	regexpPhpFile         = regexp.MustCompile(`(?://)?(/[^ ]*\.php)`)
-	regexpFilename        = regexp.MustCompile(`filename=["]?file://(\S+)/Data/Temporary/[^/]*/Cache/Code/Flow_Object_Classes/([^"]*)\.php`)
+	regexpFilename        = regexp.MustCompile(`filename=["]?file://(\S+)/Data/Temporary/([^/]*(/SubContext[^/]*)?)/Cache/Code/Flow_Object_Classes/([^"]*)\.php`)
 	regexpPathAndFilename = regexp.MustCompile(`(?m)^# PathAndFilename: (.*)$`)
 	regexpPackageClass    = regexp.MustCompile(`(.*?)/Packages/[^/]*/(.*?)/Classes/(.*).php`)
 	regexpDot             = regexp.MustCompile(`[\./]`)
@@ -92,14 +92,15 @@ func (p *PathMapper) doTextPathMapping(message []byte) []byte {
 
 func (p *PathMapper) getCachePath(base, filename string) string {
 	cachePath := strings.Replace(cachePathPattern, "@base@", base, 1)
-	cachePath = strings.Replace(cachePath, "@context@", p.config.Context, 1)
+	contextPath := strings.Replace(p.config.Context, "/", "/SubContext", 1)
+	cachePath = strings.Replace(cachePath, "@context@", contextPath, 1)
 	return strings.Replace(cachePath, "@filename@", filename, 1)
 }
 
 func (p *PathMapper) doXMLPathMapping(b []byte) []byte {
 	var processedMapping = map[string]string{}
 	for _, match := range regexpFilename.FindAllStringSubmatch(string(b), -1) {
-		path := p.getCachePath(match[1], match[2])
+		path := p.getCachePath(match[1], match[4])
 		if _, ok := processedMapping[path]; ok == false {
 			if originalPath, exist := p.pathMapping.Get(path); exist {
 				if p.config.VeryVerbose {
