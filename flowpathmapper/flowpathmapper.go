@@ -169,10 +169,10 @@ func (p *PathMapper) readOriginalPathFromCache(path, basePath string) string {
 	if len(p.config.LocalRoot) > 0 {
 		localPath = strings.Replace(path, basePath, p.config.LocalRoot, 1)
 	}
+	p.logger.Debug("readOriginalPathFromCache %s", localPath)
 	dat, err := ioutil.ReadFile(localPath)
 	errorhandler.PanicHandling(err, p.logger)
 	match := regexpPathAndFilename.FindStringSubmatch(string(dat))
-	p.logger.Debug("readOriginalPathFromCache %s", localPath)
 	if len(match) == 2 {
 		originalPath := match[1]
 		if len(p.config.LocalRoot) > 0 {
