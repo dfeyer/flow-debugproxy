@@ -88,7 +88,6 @@ func main() {
 
 		laddr, raddr, listener := setupNetworkConnection(cli.String("xdebug"), cli.String("ide"), log)
 
-		log.Info("special version [wy/ft]\n")
 		log.Info("Debugger from %v\nIDE      from %v\n", laddr, raddr)
 
 		pathMapping := &pathmapping.PathMapping{}
