@@ -107,7 +107,7 @@ func (p *Proxy) pipe(src, dst *net.TCPConn) {
 		p.log(h, f)
 		if p.Config.VeryVerbose {
 			if isFromDebugger {
-				p.log("Raw protocol:\n%s\n", p.Logger.Colorize(fmt.Sprintf(h, b), "blue"))
+				p.log("Raw protocol:\n%s\n", p.Logger.Colorize(fmt.Sprintf(h, p.Logger.FormatXMLProtocol(b)), "blue"))
 			} else {
 				p.log("Raw protocol:\n%s\n", p.Logger.Colorize(fmt.Sprintf(h, p.Logger.FormatTextProtocol(b)), "blue"))
 			}
@@ -132,7 +132,7 @@ func (p *Proxy) pipe(src, dst *net.TCPConn) {
 		// show output
 		if p.Config.VeryVerbose {
 			if isFromDebugger {
-				p.log("Processed protocol:\n%s\n", p.Logger.Colorize(fmt.Sprintf(h, b), "blue"))
+				p.log("Processed protocol:\n%s\n", p.Logger.Colorize(fmt.Sprintf(h, p.Logger.FormatXMLProtocol(b)), "blue"))
 			} else {
 				p.log("Processed protocol:\n%s\n", p.Logger.Colorize(fmt.Sprintf(h, p.Logger.FormatTextProtocol(b)), "blue"))
 			}

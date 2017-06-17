@@ -5,18 +5,33 @@
 package logger
 
 import (
+	"encoding/xml"
+	"os"
+	"regexp"
+	"strings"
+
+	"github.com/clbanning/mxj"
 	"github.com/dfeyer/flow-debugproxy/config"
 
 	"bytes"
 	"fmt"
+
 	"github.com/mgutz/ansi"
 )
 
 var (
-	debugize = ansi.ColorFunc("green+h:black")
-	greenize = ansi.ColorFunc("green")
-	redize   = ansi.ColorFunc("red")
+	debugize          = ansi.ColorFunc("green+h:black")
+	greenize          = ansi.ColorFunc("green")
+	redize            = ansi.ColorFunc("red")
+	regexpFirstNumber = regexp.MustCompile(`^[0-9]*`)
 )
+
+type node struct {
+	Attr     []xml.Attr
+	XMLName  xml.Name
+	Children []node `xml:",any"`
+	Text     string `xml:",chardata"`
+}
 
 // Logger handle log message
 type Logger struct {
@@ -43,6 +58,30 @@ func (l *Logger) Warn(f string, args ...interface{}) {
 //Colorize use the Ansi module to colorize output
 func (l *Logger) Colorize(str, style string) string {
 	return ansi.Color(str, style)
+}
+
+func normalizeXMLProtocol(buffer []byte) string {
+	b := bytes.Replace(buffer, []byte("\x00"), []byte("\n"), -1)
+	buf := make([]rune, len(b))
+	for i, b := range b {
+		buf[i] = rune(b)
+	}
+	s := strings.Replace(string(buf), "iso-8859-1", "utf-8", 1)
+	s = regexpFirstNumber.ReplaceAllString(s, "")
+	s = strings.Replace(s, "<?xml version=\"1.0\" encoding=\"utf-8\"?>", "", 1)
+	s = strings.Trim(s, "\n")
+	return s
+}
+
+//FormatXMLProtocol beautify XML output
+func (l *Logger) FormatXMLProtocol(protocol []byte) []byte {
+	p := normalizeXMLProtocol(protocol)
+	output, err := mxj.BeautifyXml([]byte(p), "", "  ")
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+	return output
 }
 
 //FormatTextProtocol replace NULL by a line break for output formatting
