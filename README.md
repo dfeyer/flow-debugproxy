@@ -27,13 +27,6 @@ Run the proxy
     # Don't forget to change the configuration of your IDE to use port 9010
     flow-debugproxy -vv --framework flow
 
-Modification in Flow
----------------------
-
-The proxy require a small change in Flow Framwork, so please patch your version
-before submitting an issue: https://review.typo3.org/#/c/40794. This change is
-compatible with Flow master, 3.0, 2.3 (not tested on older version).
-
 How to debug the proxy class directly
 -------------------------------------
 
