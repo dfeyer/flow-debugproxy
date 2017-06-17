@@ -6,8 +6,6 @@ env:
 before_install:
   - go get github.com/mitchellh/gox
   - go get github.com/tcnksm/ghr
-  - go get github.com/axw/gocov/gocov
-  - go get code.google.com/p/go.tools/cmd/cover
 script:
   - go test -v ./...
 after_success:
