@@ -97,10 +97,7 @@ func (p *Proxy) pipe(src, dst *net.TCPConn) {
 	buff := make([]byte, 0xffff)
 	for {
 		n, err := src.Read(buff)
-		if err != nil {
-			p.pipeErrors <- err
-			// make sure the other pipe will stop as well
-			dst.Close()
+		if p.handleError(err, dst) {
 			return
 		}
 		b := buff[:n]
@@ -142,10 +139,7 @@ func (p *Proxy) pipe(src, dst *net.TCPConn) {
 
 		// write out result
 		n, err = dst.Write(b)
-		if err != nil {
-			p.pipeErrors <- err
-			// make sure the other pipe will stop as well
-			src.Close()
+		if p.handleError(err, src) {
 			return
 		}
 		if isFromDebugger {
@@ -154,4 +148,16 @@ func (p *Proxy) pipe(src, dst *net.TCPConn) {
 			p.receivedBytes += uint64(n)
 		}
 	}
+}
+
+func (p *Proxy) handleError(err error, ch *net.TCPConn) bool {
+	if err != nil {
+		p.pipeErrors <- err
+		// make sure the other pipe will stop as well
+		ch.Close()
+
+		return true
+	}
+
+	return false
 }
