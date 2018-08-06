@@ -1,6 +1,6 @@
 FROM golang:latest
 
-WORKDIR /go/src/flow-debugproxy
+WORKDIR /go/src/github.com/dfeyer/flow-debugproxy
 COPY . .
 
 RUN go get -v
