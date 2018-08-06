@@ -12,6 +12,8 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"bytes"
+	"strconv"
 )
 
 const h = "%s"
@@ -99,6 +101,28 @@ func (p *Proxy) pipe(src, dst *net.TCPConn) {
 		n, err := src.Read(buff)
 		if p.handleError(err, dst) {
 			return
+		}
+		// check for incomplete data from xdebug
+		if isFromDebugger {
+			header := bytes.Split(buff, []byte{0})
+			sizeStr := string(header[0])
+			sizeLen := len(sizeStr)
+			size, err := strconv.Atoi(sizeStr)
+			if p.handleError(err, dst) {
+				return
+			}
+
+			// whole message consists of [size NULL XML(data) NULL]
+			packetLen := sizeLen + size + 2
+			// read more data if buffer has not been filled with all expected data
+			for n < packetLen {
+				n2, err := src.Read(buff[n:])
+				if p.handleError(err, dst) {
+					return
+				}
+
+				n += n2
+			}
 		}
 		b := buff[:n]
 		p.log(h, f)
