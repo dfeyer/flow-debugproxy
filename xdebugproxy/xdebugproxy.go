@@ -12,6 +12,8 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"bytes"
+	"strconv"
 )
 
 const h = "%s"
@@ -97,11 +99,30 @@ func (p *Proxy) pipe(src, dst *net.TCPConn) {
 	buff := make([]byte, 0xffff)
 	for {
 		n, err := src.Read(buff)
-		if err != nil {
-			p.pipeErrors <- err
-			// make sure the other pipe will stop as well
-			dst.Close()
+		if p.handleError(err, dst) {
 			return
+		}
+		// check for incomplete data from xdebug
+		if isFromDebugger {
+			header := bytes.Split(buff, []byte{0})
+			sizeStr := string(header[0])
+			sizeLen := len(sizeStr)
+			size, err := strconv.Atoi(sizeStr)
+			if p.handleError(err, dst) {
+				return
+			}
+
+			// whole message consists of [size NULL XML(data) NULL]
+			packetLen := sizeLen + size + 2
+			// read more data if buffer has not been filled with all expected data
+			for n < packetLen {
+				n2, err := src.Read(buff[n:])
+				if p.handleError(err, dst) {
+					return
+				}
+
+				n += n2
+			}
 		}
 		b := buff[:n]
 		p.log(h, f)
@@ -142,10 +163,7 @@ func (p *Proxy) pipe(src, dst *net.TCPConn) {
 
 		// write out result
 		n, err = dst.Write(b)
-		if err != nil {
-			p.pipeErrors <- err
-			// make sure the other pipe will stop as well
-			src.Close()
+		if p.handleError(err, src) {
 			return
 		}
 		if isFromDebugger {
@@ -154,4 +172,16 @@ func (p *Proxy) pipe(src, dst *net.TCPConn) {
 			p.receivedBytes += uint64(n)
 		}
 	}
+}
+
+func (p *Proxy) handleError(err error, ch *net.TCPConn) bool {
+	if err != nil {
+		p.pipeErrors <- err
+		// make sure the other pipe will stop as well
+		ch.Close()
+
+		return true
+	}
+
+	return false
 }
