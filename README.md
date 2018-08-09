@@ -40,6 +40,17 @@ Show help
 
     ./flow-debugproxy help
 
+Use with Docker
+---------------
+
+If you use the env variable `FLOW_PATH_TEMPORARY_BASE`, please be sure to keep
+`Data/Temporary` inside the path, without this the mapper will not detect the
+proxy classes.
+
+```
+FLOW_PATH_TEMPORARY_BASE=/tmp/flow/Data/Temporary
+```
+
 Acknowledgments
 ---------------
 
