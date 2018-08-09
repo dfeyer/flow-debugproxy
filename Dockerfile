@@ -1,6 +1,9 @@
-FROM golang:latest 
-RUN mkdir /app 
-ADD . /app/ 
-WORKDIR /app 
-RUN go build -o main . 
-CMD ["/app/main"]
+FROM golang:latest
+
+WORKDIR /go/src/github.com/dfeyer/flow-debugproxy
+COPY . .
+
+RUN go get -v
+RUN go install -v
+
+CMD ["flow-debugproxy"]
