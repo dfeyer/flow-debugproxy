@@ -18,6 +18,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"runtime"
 )
 
 const (
@@ -28,7 +29,11 @@ const (
 
 var (
 	regexpPhpFile         = regexp.MustCompile(`(?://)?(/[^ ]*\.php)`)
-	regexpFilename        = regexp.MustCompile(`filename=["]?file://(\S+)/Data/Temporary/.+?/Cache/Code/Flow_Object_Classes/([^"]*)\.php`)
+	if runtime.GOOS == "windows" {
+		regexpFilename        = regexp.MustCompile(`filename=["]?file:///(\S+)/Data/Temporary/.+?/Cache/Code/Flow_Object_Classes/([^"]*)\.php`)
+	} else
+		regexpFilename        = regexp.MustCompile(`filename=["]?file://(\S+)/Data/Temporary/.+?/Cache/Code/Flow_Object_Classes/([^"]*)\.php`)
+	}
 	regexpPathAndFilename = regexp.MustCompile(`(?m)^# PathAndFilename: (.*)$`)
 	regexpPackageClass    = regexp.MustCompile(`(.*?)/Packages/[^/]*/(.*?)/Classes/(.*).php`)
 	regexpDot             = regexp.MustCompile(`[\./]`)
@@ -78,6 +83,9 @@ func (p *PathMapper) doTextPathMapping(message []byte) []byte {
 	var processedMapping = map[string]string{}
 	for _, match := range regexpPhpFile.FindAllStringSubmatch(string(message), -1) {
 		originalPath := match[1]
+		if runtime.GOOS == "windows" {
+			originalPath = strings.Replace(originalPath,"//","", 1)
+		}
 		path := p.mapPath(originalPath)
 		p.logger.Debug("doTextPathMapping %s >>> %s", path, originalPath)
 		processedMapping[path] = originalPath
