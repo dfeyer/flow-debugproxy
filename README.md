@@ -19,7 +19,7 @@ Build your own
     # Get the dependecies
     go get
     # Build
-    go Build
+    go build
 
 Run the proxy
 -------------

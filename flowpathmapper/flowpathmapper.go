@@ -18,6 +18,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"runtime"
 )
 
 const (
@@ -28,7 +29,8 @@ const (
 
 var (
 	regexpPhpFile         = regexp.MustCompile(`(?://)?(/[^ ]*\.php)`)
-	regexpFilename        = regexp.MustCompile(`filename=["]?file://(\S+)/Data/Temporary/.+?/Cache/Code/Flow_Object_Classes/([^"]*)\.php`)
+	regexpFilename__Win   = regexp.MustCompile(`filename=["]?file:///(\S+)/Data/Temporary/.+?/Cache/Code/Flow_Object_Classes/([^"]*)\.php`)
+	regexpFilename__Unix  = regexp.MustCompile(`filename=["]?file://(\S+)/Data/Temporary/.+?/Cache/Code/Flow_Object_Classes/([^"]*)\.php`)
 	regexpPathAndFilename = regexp.MustCompile(`(?m)^# PathAndFilename: (.*)$`)
 	regexpPackageClass    = regexp.MustCompile(`(.*?)/Packages/[^/]*/(.*?)/Classes/(.*).php`)
 	regexpDot             = regexp.MustCompile(`[\./]`)
@@ -37,6 +39,13 @@ var (
 func init() {
 	p := &PathMapper{}
 	pathmapperfactory.Register(framework, p)
+}
+
+func regexpFilename() *regexp.Regexp {
+	if runtime.GOOS == "windows" {
+		return regexpFilename__Win
+	}
+	return regexpFilename__Unix
 }
 
 // PathMapper handle the mapping between real code and proxy
@@ -78,6 +87,9 @@ func (p *PathMapper) doTextPathMapping(message []byte) []byte {
 	var processedMapping = map[string]string{}
 	for _, match := range regexpPhpFile.FindAllStringSubmatch(string(message), -1) {
 		originalPath := match[1]
+		if runtime.GOOS == "windows" {
+			originalPath = strings.Replace(originalPath,"//","", 1)
+		}
 		path := p.mapPath(originalPath)
 		p.logger.Debug("doTextPathMapping %s >>> %s", path, originalPath)
 		processedMapping[path] = originalPath
@@ -104,7 +116,7 @@ func (p *PathMapper) getCachePath(base, filename string) string {
 
 func (p *PathMapper) doXMLPathMapping(b []byte) []byte {
 	var processedMapping = map[string]string{}
-	for _, match := range regexpFilename.FindAllStringSubmatch(string(b), -1) {
+	for _, match := range regexpFilename().FindAllStringSubmatch(string(b), -1) {
 		path := p.getCachePath(match[1], match[2])
 		if _, ok := processedMapping[path]; ok == false {
 			if originalPath, exist := p.pathMapping.Get(path); exist {
