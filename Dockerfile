@@ -6,4 +6,4 @@ COPY . .
 RUN go get -v
 RUN go install -v
 
-CMD ["flow-debugproxy"]
+ENTRYPOINT ["flow-debugproxy"]
