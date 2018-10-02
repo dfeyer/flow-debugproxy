@@ -43,39 +43,58 @@ Show help
 Use with Docker
 ---------------
 
-Use the [official docker image](https://hub.docker.com/r/dfeyer/flow-debugproxy/).
+Use the [official docker image](https://hub.docker.com/r/dfeyer/flow-debugproxy/) and follow the instruction for the configuration.
 
-##### 1. Preparation:
+##### PHP configuration
 
-You will need:
-1. Your (W)LAN IP address.
-2. Your docker-machine's IP address. CMD: `docker-machine ip default` (use 127.0.0.1 on linux)
-3. Access to the PHP container's php.ini
-4. xdebug must be working
-
-##### 2. Installation & Debugging:
-
-1. Identify and set these environment variables or replace them in the upcoming commands:
-* `IDE_IP` (Primary (W)LAN address of your device)
-* `XDEBUG_PORT` (PhpStorm settings: Language & Framework -> PHP -> Debug: Xdebug: Debug Port)
-2. Set following php.ini values in your php/web container: (xdebug will now try to (only) connect to the php container itself.)
 ```
-xdebug.remote_host = 127.0.0.1
-xdebug.remote_port = 9000
+[Xdebug]
+zend_extension=/.../xdebug.so
+xdebug.remote_enable=1
+xdebug.idekey=PHPSTORM
+; The IP or name of the proxy container
+xdebug.remote_host=debugproxy
+; The proxy port (9010 by default, to not have issue is you use PHP FPM, already on port 9000)
+xdebug.remote_port=9010
+;xdebug.remote_log=/tmp/xdebug.log
 ```
-3. Start the debug proxy (Replace `$(docker-compose ps -q app)` with your container if you don't use docker-compose)
-```
-docker exec -e PHP_IDE_CONFIG='serverName=app' $(docker-compose ps -q app) ${FLOW_DEBUG_BIN_PATH} --xdebug 0.0.0.0:9002 --ide ${HOST_IP}:${XDEBUG_PORT} > /dev/null &
-```
-5. Enable your IDE's xdebug listener, ensure xdebug is enabled (e.g. if you use bookm)
-6. Use `xdebug_break()` in your code to force your first break.
-7. The first time you have to configure your IDE with the popup that should open on the first `xdebug_break();` hit. (Or "Click to set up path mappings" in your debug console UI)
-If not, configure your PHP Server settings yourself.
 
-Debugging the debugger:
+You can use the `xdebug.remote_log` to debug the protocol between your container and the proxy, it's useful to catch network issues.
+
+##### Docker Compose
+
+This is an incomplet Docker Compose configuration:
+
+```
+services:
+  debugproxy:
+    image: dfeyer/flow-debugproxy:latest
+    volumes:
+      - .:/data
+    environment:
+      # This MUST be the IP address of the IDE (your computer)
+      - "IDE_IP=192.168.1.130"
+      # This is the default value, need to match the xdebug.remote_port on your php.ini
+      - "XDEBUG_PORT=9010"
+      # Use this to enable verbose debugging on the proxy
+      # - "ADDITIONAL_ARGS=-vv --debug"
+    networks:
+      - backend
+
+  # This is your application containers, you need to link it to the proxy
+  app:
+    # The proxy need an access to the project files, to be able to do the path mapping
+    volumes:
+      - .:/data
+    links:
+      - debugproxy
+```
+
+**Debugging the debugger**
 
 Start the debug proxy with verbose flags if it does not connect to your IDE.
-The debug proxy does not quit after stopping the process that started it. You have to kill it in the container manually.
+The debug proxy does not quit after stopping the process that started it.
+You have to kill it in the container manually.
 
 Hint:
 

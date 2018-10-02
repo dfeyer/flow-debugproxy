@@ -18,13 +18,13 @@ WORKDIR /app
 
 COPY --from=build-env /gopath/src/github.com/dfeyer/flow-debugproxy/flow-debugproxy /app/
 
-EXPOSE 9000/tcp
+ENV ADDITIONAL_ARGS ""
 
-ENV XDEBUG_PORT 9000
+ENV XDEBUG_PORT 9010
 
 ENV IDE_IP 127.0.0.1
 ENV IDE_PORT 9000
 
 ENV FRAMEWORK "flow"
 
-ENTRYPOINT ["sh", "-c", "./flow-debugproxy --xdebug 0.0.0.0:${XDEBUG_PORT} --framework ${FRAMEWORK} --ide ${IDE_IP}:${IDE_PORT}"]
+ENTRYPOINT ["sh", "-c", "./flow-debugproxy --xdebug 0.0.0.0:${XDEBUG_PORT} --framework ${FRAMEWORK} --ide ${IDE_IP}:${IDE_PORT} ${ADDITIONAL_ARGS}"]
