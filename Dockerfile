@@ -16,11 +16,15 @@ RUN cd /gopath/src/github.com/dfeyer/flow-debugproxy \
 FROM alpine
 WORKDIR /app
 
-ENV XDEBUG_IP 127.0.0.1
-ENV XDEBUG_PORT 9000
-
 COPY --from=build-env /gopath/src/github.com/dfeyer/flow-debugproxy/flow-debugproxy /app/
 
-EXPOSE 9010/tcp
+EXPOSE 9000/tcp
 
-ENTRYPOINT ["sh", "-c", "./flow-debugproxy --xdebug 0.0.0.0:9010 --framework flow --ide ${XDEBUG_IP}:${XDEBUG_PORT}"]
+ENV XDEBUG_PORT 9000
+
+ENV IDE_IP 127.0.0.1
+ENV IDE_PORT 9000
+
+ENV FRAMEWORK "flow"
+
+ENTRYPOINT ["sh", "-c", "./flow-debugproxy --xdebug 0.0.0.0:${XDEBUG_PORT} --framework ${FRAMEWORK} --ide ${IDE_IP}:${IDE_PORT}"]

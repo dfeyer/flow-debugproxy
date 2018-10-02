@@ -43,28 +43,27 @@ Show help
 Use with Docker
 ---------------
 
+Use the [official docker image](https://hub.docker.com/r/dfeyer/flow-debugproxy/).
+
 ##### 1. Preparation:
 
 You will need:
 1. Your (W)LAN IP address.
 2. Your docker-machine's IP address. CMD: `docker-machine ip default` (use 127.0.0.1 on linux)
-3. A compiled flow-debugproxy binary
-4. Access to the PHP container's php.ini
-5. xdebug must be working
+3. Access to the PHP container's php.ini
+4. xdebug must be working
 
 ##### 2. Installation & Debugging:
 
-1. Copy the flow-debugproxy binary to your container or a mounted folder.
-2. Identify and set these environment variables or replace them in the upcoming commands:
-* `HOST_IP` (Primary (W)LAN address of your device)
+1. Identify and set these environment variables or replace them in the upcoming commands:
+* `IDE_IP` (Primary (W)LAN address of your device)
 * `XDEBUG_PORT` (PhpStorm settings: Language & Framework -> PHP -> Debug: Xdebug: Debug Port)
-* `FLOW_DEBUG_BIN_PATH` (The path of the binary **inside** the container)
-3. Set following php.ini values in your php/web container: (xdebug will now try to (only) connect to the php container itself.)
+2. Set following php.ini values in your php/web container: (xdebug will now try to (only) connect to the php container itself.)
 ```
 xdebug.remote_host = 127.0.0.1
-xdebug.remote_port = 9002
+xdebug.remote_port = 9000
 ```
-4. Start the debug proxy (Replace `$(docker-compose ps -q app)` with your container if you don't use docker-compose)
+3. Start the debug proxy (Replace `$(docker-compose ps -q app)` with your container if you don't use docker-compose)
 ```
 docker exec -e PHP_IDE_CONFIG='serverName=app' $(docker-compose ps -q app) ${FLOW_DEBUG_BIN_PATH} --xdebug 0.0.0.0:9002 --ide ${HOST_IP}:${XDEBUG_PORT} > /dev/null &
 ```
