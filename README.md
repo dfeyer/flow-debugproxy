@@ -63,7 +63,7 @@ You can use the `xdebug.remote_log` to debug the protocol between your container
 
 ##### Docker Compose
 
-This is an incomplet Docker Compose configuration:
+This is an incomplete Docker Compose configuration:
 
 ```
 services:
@@ -89,6 +89,13 @@ services:
     links:
       - debugproxy
 ```
+
+**Options summary:**
+* `IDE_IP` The primary local W-/LAN IP of your machine where your IDE runs on
+* `IDE_PORT` The Port your IDE is listening for incoming xdebug connections. (The port the debug proxy will try to connect to)
+* `XDEBUG_PORT` The port on which xdebug will try to establish a connection (to this container)
+* `FRAMEWORK` Currently supported values: `flow` and `dummy`
+* `ADDITIONAL_ARGS` For any additional argument like verbosity flags (`-vv`) or debug mode (`--debug`) (or both)
 
 **Debugging the debugger**
 
