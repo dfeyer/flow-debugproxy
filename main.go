@@ -17,7 +17,7 @@ import (
 	_ "github.com/dfeyer/flow-debugproxy/dummypathmapper"
 	_ "github.com/dfeyer/flow-debugproxy/flowpathmapper"
 
-	"github.com/codegangsta/cli"
+	"github.com/urfave/cli"
 
 	"net"
 	"os"
