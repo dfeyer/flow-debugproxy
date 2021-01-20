@@ -17,7 +17,7 @@ import (
 	_ "github.com/dfeyer/flow-debugproxy/dummypathmapper"
 	_ "github.com/dfeyer/flow-debugproxy/flowpathmapper"
 
-	"github.com/codegangsta/cli"
+	"github.com/urfave/cli"
 
 	"net"
 	"os"
@@ -28,51 +28,49 @@ func main() {
 	app := cli.NewApp()
 	app.Name = "flow-debugproxy"
 	app.Usage = "Flow Framework xDebug proxy"
-	app.Author = "Dominique Feyer"
-	app.Email = "dominique@neos.io"
 	app.Version = "1.0.1"
 
 	app.Flags = []cli.Flag{
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "xdebug, l",
 			Value: "127.0.0.1:9000",
 			Usage: "Listen address IP and port number",
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "ide, I",
 			Value: "127.0.0.1:9010",
 			Usage: "Bind address IP and port number",
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "context, c",
 			Value: "Development",
 			Usage: "The context to run as",
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "localroot, r",
 			Value: "",
 			Usage: "Local project root for remote debugging",
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "framework",
 			Value: "flow",
 			Usage: "Framework support, currently on Flow framework (flow) or Dummy (dummy) is supported",
 		},
-		cli.BoolFlag{
+		&cli.BoolFlag{
 			Name:  "verbose",
 			Usage: "Verbose",
 		},
-		cli.BoolFlag{
+		&cli.BoolFlag{
 			Name:  "vv",
 			Usage: "Very verbose",
 		},
-		cli.BoolFlag{
+		&cli.BoolFlag{
 			Name:  "debug",
 			Usage: "Show debug output",
 		},
 	}
 
-	app.Action = func(cli *cli.Context) {
+	app.Action = func(cli *cli.Context) error {
 		c := &config.Config{
 			Context:     cli.String("context"),
 			Framework:   cli.String("framework"),
